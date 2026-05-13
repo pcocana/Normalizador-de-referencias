@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Normalizador APA 7 — Referencias Bibliográficas</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f1f0ed;
+    --border: #e2e0da;
+    --border2: #ccc9c0;
+    --text: #1a1916;
+    --text2: #5a5751;
+    --text3: #9a9690;
+    --accent: #1a1916;
+    --teal: #0f6e56;
+    --teal-bg: #e1f5ee;
+    --amber: #854f0b;
+    --amber-bg: #faeeda;
+    --red: #a32d2d;
+    --red-bg: #fcebeb;
+    --blue: #185fa5;
+    --blue-bg: #e6f1fb;
+    --yellow: #FFFF00;
+  }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header svg { flex-shrink: 0; }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; }
+  header p { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; font-family: 'Helvetica Neue', sans-serif; }
+
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* UPLOAD */
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+  .drop-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
+  }
+  .drop-zone h2 { font-size: 1.05rem; margin-bottom: 0.4rem; }
+  .drop-zone p { font-size: 0.85rem; color: var(--text2); font-family: 'Helvetica Neue', sans-serif; }
+  .browse-link {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    font-family: 'Helvetica Neue', sans-serif;
+    padding: 7px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    cursor: pointer;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .browse-link:hover { background: var(--surface2); }
+  #file-input { display: none; }
+
+  .file-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    font-family: 'Helvetica Neue', sans-serif;
+  }
+  .file-card svg { color: var(--text3); flex-shrink: 0; }
+  .file-card .fname { font-size: 0.9rem; font-weight: 600; flex: 1; }
+  .file-card .fsize { font-size: 0.8rem; color: var(--text3); }
+
+  .btn-primary {
+    width: 100%; margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem; font-weight: 600;
+    font-family: 'Helvetica Neue', sans-serif;
+    cursor: pointer; border: none;
+    background: var(--accent); color: #fff;
+    transition: opacity 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* PROGRESS */
+  .progress-wrap { margin-top: 1.5rem; }
+  .progress-label { font-size: 0.85rem; color: var(--text2); font-family: 'Helvetica Neue', sans-serif; margin-bottom: 8px; }
+  .progress-track { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.35s ease; width: 0; }
+  .steps { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+  .step { display: flex; align-items: center; gap: 9px; font-size: 0.83rem; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; }
+  .step.active { color: var(--text); }
+  .step.done { color: var(--text2); }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+  .step.done .step-dot { background: var(--accent); }
+  .step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(26,25,22,0.12); }
+
+  /* ERROR */
+  .error-box {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--red-bg); border: 1px solid #f7c1c1;
+    border-radius: 8px; padding: 12px 14px; margin-top: 12px;
+    font-size: 0.85rem; color: var(--red); font-family: 'Helvetica Neue', sans-serif;
+    white-space: pre-line;
+  }
+
+  /* RESULTS */
+  .results { margin-top: 2rem; }
+  .results-header { display: flex; align-items: center; gap: 9px; margin-bottom: 1.25rem; }
+  .results-header svg { color: var(--teal); }
+  .results-header span { font-size: 1.05rem; font-weight: 700; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; margin-bottom: 4px; }
+  .stat-value { font-size: 1.6rem; font-weight: 700; }
+  .stat-value.warn { color: var(--amber); }
+  .stat-value.danger { color: var(--red); }
+  .stat-value.info { color: var(--blue); }
+
+  .tipos-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1.25rem; }
+  .tipo-tag {
+    font-size: 0.78rem; font-family: 'Helvetica Neue', sans-serif;
+    padding: 4px 11px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .tipo-count { font-weight: 700; }
+
+  .issues-table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+  .issues-table thead th {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text3); font-family: 'Helvetica Neue', sans-serif;
+    padding: 8px 10px; text-align: left;
+    border-bottom: 1px solid var(--border); font-weight: 600;
+    background: var(--surface2);
+  }
+  .issues-table tbody td {
+    font-size: 0.82rem; padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Helvetica Neue', sans-serif;
+    vertical-align: top;
+  }
+  .issues-table tbody tr:last-child td { border-bottom: none; }
+  .issues-table tbody tr:hover td { background: var(--surface2); }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 1.25rem; overflow-x: auto; }
+  .table-title { padding: 10px 14px; font-size: 0.83rem; font-weight: 600; font-family: 'Helvetica Neue', sans-serif; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: inline-block; margin: 1px 2px 1px 0; }
+  .badge-dup { background: var(--amber-bg); color: var(--amber); }
+  .badge-year { background: var(--red-bg); color: var(--red); }
+  .badge-inc { background: var(--blue-bg); color: var(--blue); }
+
+  .btn-download {
+    width: 100%; padding: 13px;
+    border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+    font-family: 'Helvetica Neue', sans-serif;
+    cursor: pointer; border: 2px solid var(--accent);
+    background: var(--surface); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    transition: background 0.15s;
+  }
+  .btn-download:hover { background: var(--surface2); }
+
+  .btn-reset {
+    width: 100%; margin-top: 10px; padding: 10px;
+    border-radius: 8px; font-size: 0.85rem;
+    font-family: 'Helvetica Neue', sans-serif;
+    cursor: pointer; border: none; background: none;
+    color: var(--text3);
+  }
+  .btn-reset:hover { color: var(--text); }
+
+  .more-note { padding: 8px 10px; font-size: 0.78rem; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--text3);
+    font-family: 'Helvetica Neue', sans-serif;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 1rem; }
+    main { padding: 1.25rem 1rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
+  </svg>
+  <div>
+    <h1>Normalizador de Referencias APA 7</h1>
+    <p>Limpieza · Clasificación · Duplicados · Validación · Observaciones automáticas</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- UPLOAD -->
+  <div id="upload-section">
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <h2>Arrastra tu archivo Excel aquí</h2>
+      <p>El archivo debe tener una columna llamada Referencias, Bibliografía, Cita o similar</p>
+      <label class="browse-link" for="file-input">Seleccionar archivo .xlsx</label>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx">
+
+    <div class="file-card" id="file-card" style="display:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+      </svg>
+      <span class="fname" id="fname"></span>
+      <span class="fsize" id="fsize"></span>
+    </div>
+
+    <div class="error-box" id="error-box" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="error-msg"></span>
+    </div>
+
+    <button class="btn-primary" id="process-btn" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Normalizar referencias
+    </button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progress-section" style="display:none">
+    <p class="progress-label" id="progress-label">Procesando…</p>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="steps" id="steps-container"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results" id="results-section" style="display:none"></div>
+
+</main>
+
+<footer>
+  Normalizador APA 7 · v1.0 · Mayo 2026 · Pablo Coronel · Procesamiento local — ningún archivo sale de tu equipo
+</footer>
+
+<script>
+const COLUMNAS_REF = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
+
+// ─── LÓGICA DE NORMALIZACIÓN ────────────────────────────────────────────────
+
+function cleanText(v) {
+  if (v == null) return '';
+  let t = String(v);
+  t = t.replace(/[\n\r]/g, ' ');
+  t = t.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+  t = t.replace(/ {2,}/g, ' ');
+  t = t.replace(/ ([,\.;:])/g, '$1');
+  return t.trim();
+}
+
+function hasYear(t) {
+  return /\(\s*(1[5-9]\d{2}|20[0-2]\d|s\.f\.|n\.d\.)\s*\)/i.test(t) ||
+         /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(t);
+}
+
+function classifyType(text) {
+  const t = text.toLowerCase();
+  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
+  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t)) return 'Tesis';
+  if (/\b(informe|technical report|working paper)\b/i.test(t)) return 'Informe técnico';
+  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text)) return 'Norma';
+  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t)) return 'Documento legal';
+  if (/https?:\/\/doi\.org/i.test(t) || /doi:\s*10\.\d{4}/i.test(t)) return 'Artículo científico';
+  if (/,\s*\d+\s*\(\d+\)\s*,\s*\d+/.test(t)) return 'Artículo científico';
+  if (/\b(diario|periódico|newspaper)\b/i.test(t)) return 'Artículo de periódico';
+  if (/https?:\/\//i.test(t)) {
+    if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|birkh)\b/i.test(t)) return 'Libro';
+    return 'Recurso web';
+  }
+  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t)) return 'Libro';
+  if (hasYear(text) && text.length > 30) return 'Libro';
+  return 'Tipo no identificado';
+}
+
+function isIncomplete(text) {
+  if (!text || text.trim().length < 20) return true;
+  if (/^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ]+,?\s+[A-Z]\.?\s*$/.test(text.trim())) return true;
+  return false;
+}
+
+function normalizeKey(text) {
+  return text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// ─── UI HELPERS ─────────────────────────────────────────────────────────────
+
+let selectedFile = null;
+let processedBlob = null;
+let outputName = '';
+
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const processBtn = document.getElementById('process-btn');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  hideError();
+  if (!f.name.match(/\.xlsx$/i)) { showError('Solo se admiten archivos .xlsx'); return; }
+  selectedFile = f;
+  document.getElementById('fname').textContent = f.name;
+  document.getElementById('fsize').textContent = (f.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('file-card').style.display = 'flex';
+  processBtn.disabled = false;
+  outputName = f.name.replace(/\.xlsx$/i, '') + '_normalizado.xlsx';
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-box').style.display = 'flex';
+}
+function hideError() { document.getElementById('error-box').style.display = 'none'; }
+
+function setProgress(pct, label) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = label;
+}
+
+const STEP_DEFS = [
+  { id: 'load',       label: 'Cargando archivo Excel' },
+  { id: 'detect',     label: 'Detectando columna de referencias' },
+  { id: 'clean',      label: 'Limpiando texto de cada referencia' },
+  { id: 'classify',   label: 'Clasificando tipo documental' },
+  { id: 'validate',   label: 'Validando año e incompletitud' },
+  { id: 'duplicates', label: 'Detectando referencias duplicadas' },
+  { id: 'save',       label: 'Generando archivo normalizado' },
+];
+
+function buildSteps() {
+  const c = document.getElementById('steps-container');
+  c.innerHTML = STEP_DEFS.map(s =>
+    `<div class="step" id="step-${s.id}"><div class="step-dot"></div><span>${s.label}</span></div>`
+  ).join('');
+}
+
+function setStep(id, state) {
+  const el = document.getElementById('step-' + id);
+  if (el) el.className = 'step ' + state;
+}
+
+// ─── PROCESAMIENTO PRINCIPAL ─────────────────────────────────────────────────
+
+processBtn.addEventListener('click', processFile);
+
+async function processFile() {
+  if (!selectedFile) return;
+  hideError();
+  processBtn.disabled = true;
+
+  const uploadSec = document.getElementById('upload-section');
+  uploadSec.style.opacity = '0.5';
+  uploadSec.style.pointerEvents = 'none';
+
+  const progSec = document.getElementById('progress-section');
+  progSec.style.display = 'block';
+  buildSteps();
+  setProgress(5, 'Iniciando…');
+
+  try {
+    // 1. Cargar archivo
+    setStep('load', 'active');
+    const buf = await selectedFile.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    setStep('load', 'done');
+    setProgress(15, 'Archivo cargado');
+
+    const ws = wb.worksheets[0];
+    if (!ws) throw new Error('El archivo no contiene hojas de cálculo.');
+
+    // 2. Detectar columna de referencias
+    setStep('detect', 'active');
+    let colRef = null, headerRow = null;
+    ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
+      if (colRef) return;
+      row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
+        if (colRef) return;
+        const v = cell.value ? String(cell.value).trim().toLowerCase() : '';
+        if (COLUMNAS_REF.includes(v)) { colRef = cIdx; headerRow = rIdx; }
+      });
+    });
+
+    if (!colRef) throw new Error(
+      'No se encontró una columna con referencias bibliográficas.\n' +
+      'Nombres aceptados: Referencia, Referencias, Bibliografía, Cita, Referencia APA.\n' +
+      'Si tu columna tiene otro nombre, renómbrala e inténtalo nuevamente.'
+    );
+    setStep('detect', 'done');
+    setProgress(25, 'Columna detectada: columna ' + colRef);
+
+    // Detectar o crear columna Observaciones
+    let colObs = null;
+    ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
+      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
+    });
+    if (!colObs) {
+      colObs = ws.columnCount + 1;
+      const hCell = ws.getRow(headerRow).getCell(colObs);
+      hCell.value = 'Observaciones';
+      hCell.font = { bold: true };
+    }
+
+    // 3. Limpiar texto
+    setStep('clean', 'active');
+    const refs = {};
+    ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
+      if (rIdx <= headerRow) return;
+      const cell = row.getCell(colRef);
+      const val = cell.value != null ? String(cell.value) : null;
+      if (val && val.trim()) {
+        const cleaned = cleanText(val);
+        cell.value = cleaned;
+        refs[rIdx] = cleaned;
+      }
+    });
+    if (Object.keys(refs).length === 0) throw new Error('El archivo no contiene referencias para procesar.');
+    setStep('clean', 'done');
+    setProgress(40, 'Texto limpio — ' + Object.keys(refs).length + ' referencias');
+
+    // 4. Clasificar tipo documental
+    setStep('classify', 'active');
+    const classified = {};
+    Object.entries(refs).forEach(([r, t]) => { classified[r] = classifyType(t); });
+    setStep('classify', 'done');
+    setProgress(55, 'Tipos identificados');
+
+    // 5. Validar año e incompletitud
+    setStep('validate', 'active');
+    const validation = {};
+    Object.entries(refs).forEach(([r, t]) => {
+      validation[r] = { sinAño: !hasYear(t), incompleta: isIncomplete(t) };
+    });
+    setStep('validate', 'done');
+    setProgress(68, 'Validación completa');
+
+    // 6. Detectar duplicados
+    setStep('duplicates', 'active');
+    const normMap = {};
+    Object.entries(refs).forEach(([r, t]) => {
+      const k = normalizeKey(t);
+      if (!normMap[k]) normMap[k] = [];
+      normMap[k].push(Number(r));
+    });
+    const dupRows = new Set();
+    Object.values(normMap).forEach(rows => {
+      if (rows.length > 1) rows.forEach(r => dupRows.add(r));
+    });
+    setStep('duplicates', 'done');
+    setProgress(82, dupRows.size + ' filas duplicadas detectadas');
+
+    // 7. Escribir observaciones y formato
+    setStep('save', 'active');
+    const YELLOW_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+
+    const stats  = { total: 0, dup: 0, sinAño: 0, inc: 0 };
+    const tipos  = {};
+    const issues = [];
+
+    Object.entries(refs).forEach(([rIdx, text]) => {
+      const r   = Number(rIdx);
+      const obs = [];
+      const tipo = classified[rIdx];
+      obs.push(tipo);
+      tipos[tipo] = (tipos[tipo] || 0) + 1;
+
+      const v = validation[rIdx];
+      if (v.incompleta) { obs.push('Referencia incompleta'); stats.inc++; }
+      if (v.sinAño)     { obs.push('Sin Año');               stats.sinAño++; }
+      if (dupRows.has(r))  { obs.push('Referencia duplicada');  stats.dup++; }
+
+      const row     = ws.getRow(r);
+      const refCell = row.getCell(colRef);
+      if (dupRows.has(r)) refCell.fill = YELLOW_FILL;
+
+      const obsCell  = row.getCell(colObs);
+      const existing = obsCell.value ? String(obsCell.value).trim() : '';
+      obsCell.value  = existing ? existing + '; ' + obs.join('; ') : obs.join('; ');
+      obsCell.alignment = { wrapText: true };
+
+      stats.total++;
+      if (obs.length > 1 || tipo !== 'Libro') {
+        issues.push({ row: r, text: text.slice(0, 80) + (text.length > 80 ? '…' : ''), obs });
+      }
+    });
+
+    setStep('save', 'done');
+    setProgress(100, 'Listo');
+
+    const outBuf = await wb.xlsx.writeBuffer();
+    processedBlob = new Blob([outBuf], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    setTimeout(() => {
+      progSec.style.display = 'none';
+      showResults(stats, tipos, issues);
+    }, 400);
+
+  } catch (e) {
+    progSec.style.display = 'none';
+    uploadSec.style.opacity = '1';
+    uploadSec.style.pointerEvents = '';
+    processBtn.disabled = false;
+    showError(e.message || String(e));
+  }
+}
+
+// ─── MOSTRAR RESULTADOS ───────────────────────────────────────────────────────
+
+function showResults(stats, tipos, issues) {
+  const sec = document.getElementById('results-section');
+  sec.style.display = 'block';
+
+  const tipoTags = Object.entries(tipos)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, c]) => `<span class="tipo-tag"><span class="tipo-count">${c}</span> ${t}</span>`)
+    .join('');
+
+  const issueRows = issues.slice(0, 25).map(iss => {
+    const badges = [
+      iss.obs.includes('Referencia duplicada') ? '<span class="badge badge-dup">Duplicada</span>' : '',
+      iss.obs.includes('Sin Año')              ? '<span class="badge badge-year">Sin año</span>'   : '',
+      iss.obs.includes('Referencia incompleta')? '<span class="badge badge-inc">Incompleta</span>' : '',
+    ].join('');
+    return `<tr>
+      <td style="color:#5a5751;font-size:0.75rem;">${iss.row}</td>
+      <td>${iss.text}</td>
+      <td>${badges || '<span style="color:#9a9690">—</span>'}</td>
+      <td style="color:#5a5751">${iss.obs[0]}</td>
+    </tr>`;
+  }).join('');
+
+  const moreLine = issues.length > 25
+    ? `<tr><td colspan="4" class="more-note">… y ${issues.length - 25} referencia(s) más con observaciones en el archivo</td></tr>`
+    : '';
+
+  sec.innerHTML = `
+    <div class="results-header">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span>Procesamiento completado</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${stats.total}</div></div>
+      <div class="stat-card"><div class="stat-label">Duplicadas</div><div class="stat-value warn">${stats.dup}</div></div>
+      <div class="stat-card"><div class="stat-label">Sin año</div><div class="stat-value danger">${stats.sinAño}</div></div>
+      <div class="stat-card"><div class="stat-label">Incompletas</div><div class="stat-value info">${stats.inc}</div></div>
+    </div>
+
+    <div class="tipos-wrap">${tipoTags}</div>
+
+    ${issues.length > 0 ? `
+    <div class="table-wrap">
+      <div class="table-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Referencias con observaciones
+      </div>
+      <table class="issues-table">
+        <thead><tr><th>Fila</th><th>Referencia</th><th>Marcas</th><th>Tipo</th></tr></thead>
+        <tbody>${issueRows}${moreLine}</tbody>
+      </table>
+    </div>` : `<p style="font-size:0.85rem;color:#5a5751;margin-bottom:1.25rem;font-family:sans-serif;">No se detectaron problemas adicionales.</p>`}
+
+    <button class="btn-download" id="dl-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar ${outputName}
+    </button>
+    <button class="btn-reset" id="reset-btn">↩ Procesar otro archivo</button>
+  `;
+
+  document.getElementById('dl-btn').addEventListener('click', () => {
+    const url = URL.createObjectURL(processedBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = outputName; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    selectedFile = null; processedBlob = null; outputName = '';
+    document.getElementById('file-card').style.display = 'none';
+    document.getElementById('upload-section').style.opacity = '1';
+    document.getElementById('upload-section').style.pointerEvents = '';
+    processBtn.disabled = true;
+    fileInput.value = '';
+    sec.style.display = 'none';
+    hideError();
+  });
+}
+</script>
+</body>
+</html>
