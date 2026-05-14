@@ -64,7 +64,7 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .ed-header h2 { font-size: 1rem; margin-bottom: 3px; }
 .ed-header p  { font-size: .8rem; color: var(--text2); font-family: sans-serif; }
 
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.1rem; }
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 1.1rem; }
 .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .sl { font-size: .67rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); font-family: sans-serif; margin-bottom: 3px; }
 .sv { font-size: 1.45rem; font-weight: 700; }
@@ -97,6 +97,7 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .b-dup    { background: var(--amber-bg); color: var(--amber); }
 .b-year   { background: var(--red-bg);   color: var(--red); }
 .b-inc    { background: var(--blue-bg);  color: var(--blue); }
+.b-num    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
 .b-new    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
 .ref-txt  { font-size: .81rem; color: var(--text2); font-family: sans-serif; line-height: 1.5; }
 
@@ -202,6 +203,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
     <div class="scard"><div class="sl">Duplicadas</div><div class="sv warn" id="st-dup">0</div></div>
     <div class="scard"><div class="sl">Sin año</div><div class="sv danger" id="st-year">0</div></div>
     <div class="scard"><div class="sl">Incompletas</div><div class="sv info" id="st-inc">0</div></div>
+    <div class="scard"><div class="sl">Numeración eliminada</div><div class="sv" style="color:var(--green)" id="st-num">0</div></div>
   </div>
 
   <div class="filters" id="filters">
@@ -210,6 +212,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
     <button class="f-btn" data-f="year">Sin año</button>
     <button class="f-btn" data-f="inc">Incompletas</button>
     <button class="f-btn" data-f="unk">Sin clasificar</button>
+    <button class="f-btn" data-f="num">Numeración eliminada</button>
     <span class="f-count" id="f-count"></span>
   </div>
 
@@ -231,7 +234,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 </div>
 
 </main>
-<footer>Normalizador APA 7 · v3.0 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.1 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -262,6 +265,21 @@ function uid() { return '_' + Math.random().toString(36).slice(2,9); }
 // ═══════════════════════════════════════════════════════
 // NORMALIZACIÓN
 // ═══════════════════════════════════════════════════════
+
+/**
+ * Elimina numeración inicial de referencias:
+ *   "1. Texto…"  →  "Texto…"
+ *   "12) Texto…" →  "Texto…"
+ *   "[3] Texto…" →  "Texto…"
+ *   "- Texto…"   →  "Texto…"
+ * Devuelve { text, stripped } donde stripped=true si hubo cambio.
+ */
+function stripLeadingNumber(v) {
+  const original = v;
+  const cleaned  = v.replace(/^\s*(\[\d+\]|\d+[\.\)]\s*|[-–•]\s+)/, '').trim();
+  return { text: cleaned, stripped: cleaned !== original.trim() };
+}
+
 function cleanText(v) {
   if (v == null) return '';
   return String(v)
@@ -458,13 +476,15 @@ async function loadFile() {
       const cell = row.getCell(colRef);
       const raw  = cell.value != null ? String(cell.value).trim() : '';
       if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
+      const { text: strippedText, stripped } = stripLeadingNumber(raw);
       refList.push({
-        id:       uid(),
-        excelRow: rIdx,
-        parentId: null,
-        text:     cleanText(raw),
-        deleted:  false,
-        isNew:    false
+        id:            uid(),
+        excelRow:      rIdx,
+        parentId:      null,
+        text:          cleanText(strippedText),
+        deleted:       false,
+        isNew:         false,
+        hadLeadingNum: stripped
       });
     });
     if (refList.length === 0) throw new Error(
@@ -498,6 +518,7 @@ function renderEditor() {
   document.getElementById('st-dup').textContent   = active.filter(r => obs[r.id]?.isDup).length;
   document.getElementById('st-year').textContent  = active.filter(r => obs[r.id]?.tags.includes('Sin Año')).length;
   document.getElementById('st-inc').textContent   = active.filter(r => obs[r.id]?.tags.includes('Referencia incompleta')).length;
+  document.getElementById('st-num').textContent   = active.filter(r => r.hadLeadingNum).length;
   document.getElementById('lhd-sub').textContent  = deleted > 0 ? `(${deleted} eliminada${deleted>1?'s':''})` : '';
 
   const visible = refList.filter(r => {
@@ -509,6 +530,7 @@ function renderEditor() {
     if (curFilter === 'year') return o.tags.includes('Sin Año');
     if (curFilter === 'inc')  return o.tags.includes('Referencia incompleta');
     if (curFilter === 'unk')  return o.tipo === 'Tipo no identificado';
+    if (curFilter === 'num')  return r.hadLeadingNum;
     return true;
   });
 
@@ -532,6 +554,7 @@ function renderItem(r, o) {
     return `<span class="badge ${cls}">${esc(t)}</span>`;
   }).join('');
   const newBadge = r.isNew ? '<span class="badge b-new">✂ nueva</span>' : '';
+  const numBadge = r.hadLeadingNum ? '<span class="badge b-num" title="Se eliminó numeración inicial (ej: 1. 2. 3.)">🔢 numeración eliminada</span>' : '';
   const rowLabel = r.excelRow ? `fila ${r.excelRow}` : 'nueva';
   const shortTxt = r.text.length > 130 ? r.text.slice(0,130)+'…' : r.text;
 
@@ -545,7 +568,7 @@ function renderItem(r, o) {
     <div class="ref-top">
       <div class="ref-info">
         <div class="ref-chips">
-          <span class="ref-num">${rowLabel}</span>${tipoBadge}${warnBadges}${newBadge}
+          <span class="ref-num">${rowLabel}</span>${tipoBadge}${warnBadges}${newBadge}${numBadge}
         </div>
         <div class="ref-txt">${esc(shortTxt)}</div>
       </div>
@@ -623,7 +646,8 @@ function applySplit(id) {
   if (!t1 || !t2) { alert('Las dos partes deben tener contenido.'); return; }
   const r = refList.find(r=>r.id===id); if (!r) return;
   r.text = cleanText(t1);
-  const newR = { id: uid(), excelRow: null, parentId: id, text: cleanText(t2), deleted: false, isNew: true };
+  const { text: t2clean, stripped: t2stripped } = stripLeadingNumber(t2);
+  const newR = { id: uid(), excelRow: null, parentId: id, text: cleanText(t2clean), deleted: false, isNew: true, hadLeadingNum: t2stripped };
   refList.splice(refList.indexOf(r)+1, 0, newR);
   closeExp(id); renderEditor();
 }
