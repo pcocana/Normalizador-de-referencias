@@ -3,311 +3,273 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Normalizador APA 7 — Referencias Bibliográficas</title>
+<title>Normalizador APA 7</title>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#f8f7f4; --surface:#fff; --surface2:#f1f0ed;
+  --border:#e2e0da; --border2:#ccc9c0;
+  --text:#1a1916; --text2:#5a5751; --text3:#9a9690;
+  --accent:#1a1916;
+  --amber:#854f0b; --amber-bg:#faeeda;
+  --red:#a32d2d;   --red-bg:#fcebeb;
+  --blue:#185fa5;  --blue-bg:#e6f1fb;
+  --green:#3b6d11; --green-bg:#eaf3de;
+}
+body { font-family: Georgia, serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  :root {
-    --bg: #f8f7f4;
-    --surface: #ffffff;
-    --surface2: #f1f0ed;
-    --border: #e2e0da;
-    --border2: #ccc9c0;
-    --text: #1a1916;
-    --text2: #5a5751;
-    --text3: #9a9690;
-    --accent: #1a1916;
-    --teal: #0f6e56;
-    --teal-bg: #e1f5ee;
-    --amber: #854f0b;
-    --amber-bg: #faeeda;
-    --red: #a32d2d;
-    --red-bg: #fcebeb;
-    --blue: #185fa5;
-    --blue-bg: #e6f1fb;
-    --yellow: #FFFF00;
-  }
+header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
+header h1 { font-size: 1.1rem; font-weight: 700; }
+header p  { font-size: .74rem; opacity: .6; margin-top: 2px; font-family: sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 
-  body {
-    font-family: 'Georgia', 'Times New Roman', serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 0;
-  }
+/* UPLOAD */
+.drop-zone { border: 2px dashed var(--border2); border-radius: 12px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--surface); transition: border-color .2s, background .2s; }
+.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--surface2); }
+.drop-icon { width: 50px; height: 50px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; margin-bottom: .85rem; }
+.drop-zone h2 { font-size: .98rem; margin-bottom: .3rem; }
+.drop-zone p  { font-size: .82rem; color: var(--text2); font-family: sans-serif; }
+.browse { display: inline-block; margin-top: .7rem; font-size: .82rem; font-family: sans-serif; padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border2); cursor: pointer; background: var(--surface); }
+.browse:hover { background: var(--surface2); }
+#file-input { display: none; }
 
-  header {
-    background: var(--accent);
-    color: #fff;
-    padding: 1.5rem 2rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-  header svg { flex-shrink: 0; }
-  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; }
-  header p { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; font-family: 'Helvetica Neue', sans-serif; }
+.file-card { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px; margin-top: 10px; font-family: sans-serif; }
+.file-card .fname { font-size: .87rem; font-weight: 600; flex: 1; }
+.file-card .fsize { font-size: .76rem; color: var(--text3); }
 
-  main {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
-  }
+.btn-main { width: 100%; margin-top: 10px; padding: 11px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: none; background: var(--accent); color: #fff; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-main:hover { opacity: .85; }
+.btn-main:disabled { opacity: .35; cursor: not-allowed; }
 
-  /* UPLOAD */
-  .drop-zone {
-    border: 2px dashed var(--border2);
-    border-radius: 12px;
-    padding: 3rem 2rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    background: var(--surface);
-  }
-  .drop-zone:hover, .drop-zone.dragover {
-    border-color: var(--accent);
-    background: var(--surface2);
-  }
-  .drop-icon {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 56px; height: 56px;
-    border-radius: 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    margin-bottom: 1rem;
-  }
-  .drop-zone h2 { font-size: 1.05rem; margin-bottom: 0.4rem; }
-  .drop-zone p { font-size: 0.85rem; color: var(--text2); font-family: 'Helvetica Neue', sans-serif; }
-  .browse-link {
-    display: inline-block;
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
-    font-family: 'Helvetica Neue', sans-serif;
-    padding: 7px 18px;
-    border-radius: 6px;
-    border: 1px solid var(--border2);
-    background: var(--surface);
-    cursor: pointer;
-    color: var(--text);
-    text-decoration: none;
-  }
-  .browse-link:hover { background: var(--surface2); }
-  #file-input { display: none; }
+/* PROGRESS */
+.prog-wrap  { margin-top: 1.5rem; }
+.prog-label { font-size: .82rem; color: var(--text2); font-family: sans-serif; margin-bottom: 7px; }
+.prog-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.prog-fill  { height: 100%; background: var(--accent); border-radius: 2px; transition: width .35s; width: 0; }
+.steps { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.step { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text3); font-family: sans-serif; }
+.step.active { color: var(--text); }
+.step.done   { color: var(--text2); }
+.step-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; transition: background .2s, box-shadow .2s; }
+.step.done .step-dot, .step.active .step-dot { background: var(--accent); }
+.step.active .step-dot { box-shadow: 0 0 0 3px rgba(26,25,22,.12); }
 
-  .file-card {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin-top: 12px;
-    font-family: 'Helvetica Neue', sans-serif;
-  }
-  .file-card svg { color: var(--text3); flex-shrink: 0; }
-  .file-card .fname { font-size: 0.9rem; font-weight: 600; flex: 1; }
-  .file-card .fsize { font-size: 0.8rem; color: var(--text3); }
+/* ERROR */
+.err { display: flex; gap: 9px; align-items: flex-start; background: var(--red-bg); border: 1px solid #f7c1c1; border-radius: 8px; padding: 11px 13px; margin-top: 10px; font-size: .82rem; color: var(--red); font-family: sans-serif; white-space: pre-line; }
 
-  .btn-primary {
-    width: 100%; margin-top: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 0.95rem; font-weight: 600;
-    font-family: 'Helvetica Neue', sans-serif;
-    cursor: pointer; border: none;
-    background: var(--accent); color: #fff;
-    transition: opacity 0.15s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+/* EDITOR */
+#sec-editor { margin-top: 1.75rem; }
+.ed-header   { margin-bottom: 1.2rem; }
+.ed-header h2 { font-size: 1rem; margin-bottom: 3px; }
+.ed-header p  { font-size: .8rem; color: var(--text2); font-family: sans-serif; }
 
-  /* PROGRESS */
-  .progress-wrap { margin-top: 1.5rem; }
-  .progress-label { font-size: 0.85rem; color: var(--text2); font-family: 'Helvetica Neue', sans-serif; margin-bottom: 8px; }
-  .progress-track { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.35s ease; width: 0; }
-  .steps { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
-  .step { display: flex; align-items: center; gap: 9px; font-size: 0.83rem; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; }
-  .step.active { color: var(--text); }
-  .step.done { color: var(--text2); }
-  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
-  .step.done .step-dot { background: var(--accent); }
-  .step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(26,25,22,0.12); }
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.1rem; }
+.scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.sl { font-size: .67rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); font-family: sans-serif; margin-bottom: 3px; }
+.sv { font-size: 1.45rem; font-weight: 700; }
+.sv.warn   { color: var(--amber); }
+.sv.danger { color: var(--red); }
+.sv.info   { color: var(--blue); }
 
-  /* ERROR */
-  .error-box {
-    display: flex; gap: 10px; align-items: flex-start;
-    background: var(--red-bg); border: 1px solid #f7c1c1;
-    border-radius: 8px; padding: 12px 14px; margin-top: 12px;
-    font-size: 0.85rem; color: var(--red); font-family: 'Helvetica Neue', sans-serif;
-    white-space: pre-line;
-  }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 9px; }
+.f-btn { font-size: .77rem; font-family: sans-serif; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; transition: background .15s; }
+.f-btn:hover { background: var(--surface2); }
+.f-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.f-count { font-family: sans-serif; font-size: .77rem; color: var(--text3); margin-left: auto; }
 
-  /* RESULTS */
-  .results { margin-top: 2rem; }
-  .results-header { display: flex; align-items: center; gap: 9px; margin-bottom: 1.25rem; }
-  .results-header svg { color: var(--teal); }
-  .results-header span { font-size: 1.05rem; font-weight: 700; }
+.list-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); margin-bottom: 1.1rem; }
+.list-hd   { padding: 8px 14px; font-size: .77rem; font-weight: 600; font-family: sans-serif; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.list-body { max-height: 58vh; overflow-y: auto; }
 
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; margin-bottom: 4px; }
-  .stat-value { font-size: 1.6rem; font-weight: 700; }
-  .stat-value.warn { color: var(--amber); }
-  .stat-value.danger { color: var(--red); }
-  .stat-value.info { color: var(--blue); }
+.ref-item { border-bottom: 1px solid var(--border); padding: 10px 14px; }
+.ref-item:last-child { border-bottom: none; }
+.ref-item:hover { background: var(--surface2); }
+.ref-item.deleted { background: var(--red-bg); opacity: .5; }
+.ref-item.is-new  { background: var(--green-bg); }
 
-  .tipos-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1.25rem; }
-  .tipo-tag {
-    font-size: 0.78rem; font-family: 'Helvetica Neue', sans-serif;
-    padding: 4px 11px; border-radius: 20px;
-    border: 1px solid var(--border); background: var(--surface);
-    display: flex; align-items: center; gap: 5px;
-  }
-  .tipo-count { font-weight: 700; }
+.ref-top  { display: flex; align-items: flex-start; gap: 10px; }
+.ref-info { flex: 1; min-width: 0; }
+.ref-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 5px; }
+.ref-num  { font-size: .68rem; color: var(--text3); font-family: monospace; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.badge    { font-size: .67rem; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+.b-tipo   { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.b-dup    { background: var(--amber-bg); color: var(--amber); }
+.b-year   { background: var(--red-bg);   color: var(--red); }
+.b-inc    { background: var(--blue-bg);  color: var(--blue); }
+.b-new    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
+.ref-txt  { font-size: .81rem; color: var(--text2); font-family: sans-serif; line-height: 1.5; }
 
-  .issues-table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
-  .issues-table thead th {
-    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--text3); font-family: 'Helvetica Neue', sans-serif;
-    padding: 8px 10px; text-align: left;
-    border-bottom: 1px solid var(--border); font-weight: 600;
-    background: var(--surface2);
-  }
-  .issues-table tbody td {
-    font-size: 0.82rem; padding: 9px 10px;
-    border-bottom: 1px solid var(--border);
-    font-family: 'Helvetica Neue', sans-serif;
-    vertical-align: top;
-  }
-  .issues-table tbody tr:last-child td { border-bottom: none; }
-  .issues-table tbody tr:hover td { background: var(--surface2); }
-  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 1.25rem; overflow-x: auto; }
-  .table-title { padding: 10px 14px; font-size: 0.83rem; font-weight: 600; font-family: 'Helvetica Neue', sans-serif; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+.ref-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.btn-s    { font-size: .73rem; font-family: sans-serif; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; white-space: nowrap; transition: background .12s; }
+.btn-s:hover { background: var(--surface2); }
+.btn-s.red { color: var(--red); border-color: #f7c1c1; }
+.btn-s.red:hover { background: var(--red-bg); }
+.btn-s.grn { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-s.grn:hover { opacity: .85; }
 
-  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: inline-block; margin: 1px 2px 1px 0; }
-  .badge-dup { background: var(--amber-bg); color: var(--amber); }
-  .badge-year { background: var(--red-bg); color: var(--red); }
-  .badge-inc { background: var(--blue-bg); color: var(--blue); }
+.ref-expand { margin-top: 10px; display: none; }
+.exp-label  { display: block; font-size: .73rem; font-family: sans-serif; color: var(--text3); margin-bottom: 4px; }
+.exp-ta     { width: 100%; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; font-family: sans-serif; font-size: .81rem; resize: vertical; background: var(--surface); color: var(--text); line-height: 1.5; }
+.exp-ta:focus { outline: none; border-color: var(--accent); }
+.exp-sep    { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: .7rem; font-family: sans-serif; color: var(--text3); }
+.exp-sep::before, .exp-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.exp-btns   { display: flex; gap: 6px; margin-top: 8px; }
 
-  .btn-download {
-    width: 100%; padding: 13px;
-    border-radius: 8px; font-size: 0.95rem; font-weight: 600;
-    font-family: 'Helvetica Neue', sans-serif;
-    cursor: pointer; border: 2px solid var(--accent);
-    background: var(--surface); color: var(--accent);
-    display: flex; align-items: center; justify-content: center; gap: 9px;
-    transition: background 0.15s;
-  }
-  .btn-download:hover { background: var(--surface2); }
+.empty-msg { padding: 2.5rem; text-align: center; color: var(--text3); font-family: sans-serif; font-size: .84rem; }
 
-  .btn-reset {
-    width: 100%; margin-top: 10px; padding: 10px;
-    border-radius: 8px; font-size: 0.85rem;
-    font-family: 'Helvetica Neue', sans-serif;
-    cursor: pointer; border: none; background: none;
-    color: var(--text3);
-  }
-  .btn-reset:hover { color: var(--text); }
+.dl-area    { display: flex; gap: 10px; }
+.btn-dl     { flex: 1; padding: 12px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: 2px solid var(--accent); background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
+.btn-dl:hover { background: var(--surface2); }
+.btn-dl:disabled { opacity: .4; cursor: not-allowed; }
+.btn-reset  { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-family: sans-serif; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); }
+.btn-reset:hover { background: var(--surface2); color: var(--text); }
 
-  .more-note { padding: 8px 10px; font-size: 0.78rem; color: var(--text3); font-family: 'Helvetica Neue', sans-serif; }
+footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--text3); font-family: sans-serif; border-top: 1px solid var(--border); margin-top: 2rem; }
 
-  footer {
-    text-align: center;
-    padding: 1.5rem;
-    font-size: 0.75rem;
-    color: var(--text3);
-    font-family: 'Helvetica Neue', sans-serif;
-    border-top: 1px solid var(--border);
-    margin-top: 2rem;
-  }
-
-  @media (max-width: 600px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    header { padding: 1rem; }
-    main { padding: 1.25rem 1rem 3rem; }
-  }
+@media (max-width: 600px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  header { padding: 1rem; }
+  main   { padding: 1.2rem 1rem 3rem; }
+  .ref-btns { flex-direction: column; }
+}
 </style>
 </head>
 <body>
 
 <header>
-  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
     <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
   </svg>
   <div>
     <h1>Normalizador de Referencias APA 7</h1>
-    <p>Limpieza · Clasificación · Duplicados · Validación · Observaciones automáticas</p>
+    <p>Limpieza · Clasificación · Duplicados · Validación · Editor integrado</p>
   </div>
 </header>
 
 <main>
 
-  <!-- UPLOAD -->
-  <div id="upload-section">
-    <div class="drop-zone" id="drop-zone">
-      <div class="drop-icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-        </svg>
-      </div>
-      <h2>Arrastra tu archivo Excel aquí</h2>
-      <p>El archivo debe tener una columna llamada Referencias, Bibliografía, Cita o similar</p>
-      <label class="browse-link" for="file-input">Seleccionar archivo .xlsx</label>
-    </div>
-    <input type="file" id="file-input" accept=".xlsx">
-
-    <div class="file-card" id="file-card" style="display:none">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<!-- UPLOAD -->
+<div id="sec-upload">
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
       </svg>
-      <span class="fname" id="fname"></span>
-      <span class="fsize" id="fsize"></span>
     </div>
+    <h2>Arrastra tu archivo Excel aquí</h2>
+    <p>Columna de referencias con nombre: Referencias, Bibliografía, Cita o similar</p>
+    <label class="browse" for="file-input">Seleccionar archivo .xlsx</label>
+  </div>
+  <input type="file" id="file-input" accept=".xlsx">
 
-    <div class="error-box" id="error-box" style="display:none">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span id="error-msg"></span>
+  <div class="file-card" id="file-card" style="display:none">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+    <span class="fname" id="fname"></span>
+    <span class="fsize" id="fsize"></span>
+  </div>
+  <div class="err" id="err-box" style="display:none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="err-msg"></span>
+  </div>
+  <button class="btn-main" id="btn-proc" disabled>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Cargar y abrir editor de referencias
+  </button>
+</div>
+
+<!-- PROGRESS -->
+<div id="sec-prog" style="display:none">
+  <div class="prog-wrap">
+    <p class="prog-label" id="prog-lbl">Procesando…</p>
+    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    <div class="steps" id="steps-c"></div>
+  </div>
+</div>
+
+<!-- EDITOR -->
+<div id="sec-editor" style="display:none">
+  <div class="ed-header">
+    <h2>Editor de Referencias</h2>
+    <p>Revisa cada referencia y usa <strong>Editar</strong> para corregir texto, <strong>Cortar</strong> para dividir una celda en dos, o <strong>Eliminar</strong> para descartar entradas.</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="scard"><div class="sl">Total activas</div><div class="sv" id="st-total">0</div></div>
+    <div class="scard"><div class="sl">Duplicadas</div><div class="sv warn" id="st-dup">0</div></div>
+    <div class="scard"><div class="sl">Sin año</div><div class="sv danger" id="st-year">0</div></div>
+    <div class="scard"><div class="sl">Incompletas</div><div class="sv info" id="st-inc">0</div></div>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="f-btn on" data-f="all">Todas</button>
+    <button class="f-btn" data-f="dup">Duplicadas</button>
+    <button class="f-btn" data-f="year">Sin año</button>
+    <button class="f-btn" data-f="inc">Incompletas</button>
+    <button class="f-btn" data-f="unk">Sin clasificar</button>
+    <span class="f-count" id="f-count"></span>
+  </div>
+
+  <div class="list-wrap">
+    <div class="list-hd">
+      <span>Referencias</span>
+      <span id="lhd-sub" style="color:var(--text3);font-weight:400;font-size:.75rem"></span>
     </div>
+    <div class="list-body" id="list-body"></div>
+  </div>
 
-    <button class="btn-primary" id="process-btn" disabled>
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Normalizar referencias
+  <div class="dl-area">
+    <button class="btn-dl" id="btn-dl">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span id="btn-dl-lbl">Descargar archivo normalizado</span>
     </button>
+    <button class="btn-reset" id="btn-reset">↩ Nuevo archivo</button>
   </div>
-
-  <!-- PROGRESS -->
-  <div class="progress-wrap" id="progress-section" style="display:none">
-    <p class="progress-label" id="progress-label">Procesando…</p>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-    <div class="steps" id="steps-container"></div>
-  </div>
-
-  <!-- RESULTS -->
-  <div class="results" id="results-section" style="display:none"></div>
+</div>
 
 </main>
-
-<footer>
-  Normalizador APA 7 · v1.0 · Mayo 2026 · Pablo Coronel · Procesamiento local — ningún archivo sale de tu equipo
-</footer>
+<footer>Normalizador APA 7 · v3.0 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
-const COLUMNAS_REF = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
+// ═══════════════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════════════
+const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
+const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
+const STEP_DEFS   = [
+  { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
+  { id:'col',   label:'Detectando columna de referencias' },
+  { id:'start', label:'Detectando fila de inicio de datos' },
+  { id:'read',  label:'Leyendo y limpiando referencias' },
+];
 
-// ─── LÓGICA DE NORMALIZACIÓN ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════
+let originalBuf = null;   // ← buffer original sin modificar (para descarga)
+let wb = null, ws = null;
+let colRef = null, colObs = null, headerRow = null, dataStart = null;
+let refList = [];
+let curFilter = 'all';
+let outputName = '';
+let selectedFile = null;
 
+function uid() { return '_' + Math.random().toString(36).slice(2,9); }
+
+// ═══════════════════════════════════════════════════════
+// NORMALIZACIÓN
+// ═══════════════════════════════════════════════════════
 function cleanText(v) {
   if (v == null) return '';
-  let t = String(v);
-  t = t.replace(/[\n\r]/g, ' ');
-  t = t.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
-  t = t.replace(/ {2,}/g, ' ');
-  t = t.replace(/ ([,\.;:])/g, '$1');
-  return t.trim();
+  return String(v)
+    .replace(/[\n\r]/g,' ')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'')
+    .replace(/ {2,}/g,' ')
+    .replace(/ ([,\.;:])/g,'$1')
+    .trim();
 }
 
 function hasYear(t) {
@@ -340,321 +302,460 @@ function isIncomplete(text) {
   return false;
 }
 
-function normalizeKey(text) {
-  return text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+function normalKey(text) {
+  return text.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,' ').trim();
 }
 
-// ─── UI HELPERS ─────────────────────────────────────────────────────────────
+function computeObs() {
+  const active = refList.filter(r => !r.deleted);
+  const nmap = {};
+  active.forEach(r => {
+    const k = normalKey(r.text);
+    if (!nmap[k]) nmap[k] = [];
+    nmap[k].push(r.id);
+  });
+  const dupSet = new Set();
+  Object.values(nmap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupSet.add(id)); });
 
-let selectedFile = null;
-let processedBlob = null;
-let outputName = '';
+  const result = {};
+  refList.forEach(r => {
+    if (r.deleted) { result[r.id] = { tipo:'', tags:[], isDup:false }; return; }
+    const tipo = classifyType(r.text);
+    const tags = [tipo];
+    if (isIncomplete(r.text)) tags.push('Referencia incompleta');
+    if (!hasYear(r.text))     tags.push('Sin Año');
+    if (dupSet.has(r.id))     tags.push('Referencia duplicada');
+    result[r.id] = { tipo, tags, isDup: dupSet.has(r.id) };
+  });
+  return result;
+}
 
-const dropZone   = document.getElementById('drop-zone');
-const fileInput  = document.getElementById('file-input');
-const processBtn = document.getElementById('process-btn');
+// ═══════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const btnProc   = document.getElementById('btn-proc');
 
 dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
 dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('dragover');
+  e.preventDefault(); dropZone.classList.remove('over');
   if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
 
 function setFile(f) {
-  hideError();
-  if (!f.name.match(/\.xlsx$/i)) { showError('Solo se admiten archivos .xlsx'); return; }
+  hideErr();
+  if (!f.name.match(/\.xlsx$/i)) { showErr('Solo se admiten archivos .xlsx'); return; }
   selectedFile = f;
   document.getElementById('fname').textContent = f.name;
-  document.getElementById('fsize').textContent = (f.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('fsize').textContent = (f.size/1024).toFixed(1) + ' KB';
   document.getElementById('file-card').style.display = 'flex';
-  processBtn.disabled = false;
-  outputName = f.name.replace(/\.xlsx$/i, '') + '_normalizado.xlsx';
+  btnProc.disabled = false;
+  outputName = f.name.replace(/\.xlsx$/i,'') + '_normalizado.xlsx';
 }
 
-function showError(msg) {
-  document.getElementById('error-msg').textContent = msg;
-  document.getElementById('error-box').style.display = 'flex';
+function showErr(msg) { document.getElementById('err-msg').textContent = msg; document.getElementById('err-box').style.display='flex'; }
+function hideErr()    { document.getElementById('err-box').style.display='none'; }
+
+function setProg(pct, lbl) {
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-lbl').textContent  = lbl;
 }
-function hideError() { document.getElementById('error-box').style.display = 'none'; }
-
-function setProgress(pct, label) {
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-label').textContent = label;
+function setStep(id, s) {
+  const el = document.getElementById('st-'+id); if (!el) return;
+  el.className = 'step '+s;
+  const dot = el.querySelector('.step-dot');
+  dot.style.background  = (s==='done'||s==='active') ? 'var(--accent)' : 'var(--border2)';
+  dot.style.boxShadow   = s==='active' ? '0 0 0 3px rgba(26,25,22,.12)' : 'none';
 }
-
-const STEP_DEFS = [
-  { id: 'load',       label: 'Cargando archivo Excel' },
-  { id: 'detect',     label: 'Detectando columna de referencias' },
-  { id: 'clean',      label: 'Limpiando texto de cada referencia' },
-  { id: 'classify',   label: 'Clasificando tipo documental' },
-  { id: 'validate',   label: 'Validando año e incompletitud' },
-  { id: 'duplicates', label: 'Detectando referencias duplicadas' },
-  { id: 'save',       label: 'Generando archivo normalizado' },
-];
-
 function buildSteps() {
-  const c = document.getElementById('steps-container');
-  c.innerHTML = STEP_DEFS.map(s =>
-    `<div class="step" id="step-${s.id}"><div class="step-dot"></div><span>${s.label}</span></div>`
+  document.getElementById('steps-c').innerHTML = STEP_DEFS.map(s =>
+    `<div class="step" id="st-${s.id}"><div class="step-dot"></div><span>${s.label}</span></div>`
   ).join('');
 }
 
-function setStep(id, state) {
-  const el = document.getElementById('step-' + id);
-  if (el) el.className = 'step ' + state;
-}
+// ═══════════════════════════════════════════════════════
+// CARGA — sólo lectura; originalBuf queda intacto
+// ═══════════════════════════════════════════════════════
+btnProc.addEventListener('click', loadFile);
 
-// ─── PROCESAMIENTO PRINCIPAL ─────────────────────────────────────────────────
-
-processBtn.addEventListener('click', processFile);
-
-async function processFile() {
+async function loadFile() {
   if (!selectedFile) return;
-  hideError();
-  processBtn.disabled = true;
-
-  const uploadSec = document.getElementById('upload-section');
-  uploadSec.style.opacity = '0.5';
-  uploadSec.style.pointerEvents = 'none';
-
-  const progSec = document.getElementById('progress-section');
-  progSec.style.display = 'block';
-  buildSteps();
-  setProgress(5, 'Iniciando…');
+  hideErr();
+  btnProc.disabled = true;
+  const secUp = document.getElementById('sec-upload');
+  secUp.style.opacity = '0.5'; secUp.style.pointerEvents = 'none';
+  document.getElementById('sec-prog').style.display = 'block';
+  buildSteps(); setProg(5,'Iniciando…');
 
   try {
-    // 1. Cargar archivo
-    setStep('load', 'active');
-    const buf = await selectedFile.arrayBuffer();
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
-    setStep('load', 'done');
-    setProgress(15, 'Archivo cargado');
-
-    const ws = wb.worksheets[0];
+    // ── 1. Leer archivo y guardar copia exacta ──────────────────
+    setStep('load','active');
+    const rawBuf = await selectedFile.arrayBuffer();
+    // Guardar buffer original SIN TOCAR para preservar formato en descarga
+    originalBuf = rawBuf.slice(0);
+    // Cargar copia de trabajo (sólo para lectura de valores)
+    wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(rawBuf.slice(0));
+    ws = wb.worksheets[0];
     if (!ws) throw new Error('El archivo no contiene hojas de cálculo.');
+    setStep('load','done'); setProg(20,'Archivo cargado');
 
-    // 2. Detectar columna de referencias
-    setStep('detect', 'active');
-    let colRef = null, headerRow = null;
+    // ── 2. Detectar columna de referencias (filas 1–8) ──────────
+    setStep('col','active');
+    colRef = null; headerRow = null;
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
-      if (colRef) return;
+      if (colRef || rIdx > 8) return;
       row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
         if (colRef) return;
-        const v = cell.value ? String(cell.value).trim().toLowerCase() : '';
-        if (COLUMNAS_REF.includes(v)) { colRef = cIdx; headerRow = rIdx; }
+        const v = cell.value != null ? String(cell.value).trim().toLowerCase() : '';
+        if (COL_NAMES.includes(v)) { colRef = cIdx; headerRow = rIdx; }
       });
     });
-
     if (!colRef) throw new Error(
-      'No se encontró una columna con referencias bibliográficas.\n' +
-      'Nombres aceptados: Referencia, Referencias, Bibliografía, Cita, Referencia APA.\n' +
-      'Si tu columna tiene otro nombre, renómbrala e inténtalo nuevamente.'
+      'No se encontró columna de referencias.\n' +
+      'Nombres aceptados: Referencias, Bibliografía, Cita, Referencia APA.\n' +
+      'Renombra la columna e intenta de nuevo.'
     );
-    setStep('detect', 'done');
-    setProgress(25, 'Columna detectada: columna ' + colRef);
 
-    // Detectar o crear columna Observaciones
-    let colObs = null;
+    // Determinar índice de columna Observaciones (sin escribir aún)
+    colObs = null;
     ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
       if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
     });
-    if (!colObs) {
-      colObs = ws.columnCount + 1;
-      const hCell = ws.getRow(headerRow).getCell(colObs);
-      hCell.value = 'Observaciones';
-      hCell.font = { bold: true };
+    if (!colObs) colObs = ws.columnCount + 1;
+
+    setStep('col','done'); setProg(40, `Columna ${colRef} — fila de encabezado: ${headerRow}`);
+
+    // ── 3. Detectar automáticamente la fila de inicio de datos ──
+    //    Escanea desde headerRow+1 hasta headerRow+8 y busca la
+    //    primera celda en colRef con texto real (> 25 caracteres)
+    //    que no coincida con nombres de encabezado.
+    setStep('start','active');
+    dataStart = null;
+    for (let r = headerRow + 1; r <= Math.min(headerRow + 8, ws.rowCount); r++) {
+      const cell = ws.getRow(r).getCell(colRef);
+      const val  = cell.value != null ? String(cell.value).trim() : '';
+      if (val.length > 25 && !COL_NAMES.includes(val.toLowerCase())) {
+        dataStart = r;
+        break;
+      }
     }
+    if (!dataStart) throw new Error(
+      'No se encontraron referencias en las filas siguientes al encabezado.\n' +
+      'Verifica que los datos estén en la columna correcta.'
+    );
+    setStep('start','done'); setProg(60, `Datos desde fila ${dataStart}`);
 
-    // 3. Limpiar texto
-    setStep('clean', 'active');
-    const refs = {};
+    // ── 4. Leer referencias (sin modificar el workbook) ─────────
+    setStep('read','active');
+    refList = [];
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
-      if (rIdx <= headerRow) return;
+      if (rIdx < dataStart) return;
       const cell = row.getCell(colRef);
-      const val = cell.value != null ? String(cell.value) : null;
-      if (val && val.trim()) {
-        const cleaned = cleanText(val);
-        cell.value = cleaned;
-        refs[rIdx] = cleaned;
-      }
+      const raw  = cell.value != null ? String(cell.value).trim() : '';
+      if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
+      refList.push({
+        id:       uid(),
+        excelRow: rIdx,
+        parentId: null,
+        text:     cleanText(raw),
+        deleted:  false,
+        isNew:    false
+      });
     });
-    if (Object.keys(refs).length === 0) throw new Error('El archivo no contiene referencias para procesar.');
-    setStep('clean', 'done');
-    setProgress(40, 'Texto limpio — ' + Object.keys(refs).length + ' referencias');
-
-    // 4. Clasificar tipo documental
-    setStep('classify', 'active');
-    const classified = {};
-    Object.entries(refs).forEach(([r, t]) => { classified[r] = classifyType(t); });
-    setStep('classify', 'done');
-    setProgress(55, 'Tipos identificados');
-
-    // 5. Validar año e incompletitud
-    setStep('validate', 'active');
-    const validation = {};
-    Object.entries(refs).forEach(([r, t]) => {
-      validation[r] = { sinAño: !hasYear(t), incompleta: isIncomplete(t) };
-    });
-    setStep('validate', 'done');
-    setProgress(68, 'Validación completa');
-
-    // 6. Detectar duplicados
-    setStep('duplicates', 'active');
-    const normMap = {};
-    Object.entries(refs).forEach(([r, t]) => {
-      const k = normalizeKey(t);
-      if (!normMap[k]) normMap[k] = [];
-      normMap[k].push(Number(r));
-    });
-    const dupRows = new Set();
-    Object.values(normMap).forEach(rows => {
-      if (rows.length > 1) rows.forEach(r => dupRows.add(r));
-    });
-    setStep('duplicates', 'done');
-    setProgress(82, dupRows.size + ' filas duplicadas detectadas');
-
-    // 7. Escribir observaciones y formato
-    setStep('save', 'active');
-    const YELLOW_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-
-    const stats  = { total: 0, dup: 0, sinAño: 0, inc: 0 };
-    const tipos  = {};
-    const issues = [];
-
-    Object.entries(refs).forEach(([rIdx, text]) => {
-      const r   = Number(rIdx);
-      const obs = [];
-      const tipo = classified[rIdx];
-      obs.push(tipo);
-      tipos[tipo] = (tipos[tipo] || 0) + 1;
-
-      const v = validation[rIdx];
-      if (v.incompleta) { obs.push('Referencia incompleta'); stats.inc++; }
-      if (v.sinAño)     { obs.push('Sin Año');               stats.sinAño++; }
-      if (dupRows.has(r))  { obs.push('Referencia duplicada');  stats.dup++; }
-
-      const row     = ws.getRow(r);
-      const refCell = row.getCell(colRef);
-      if (dupRows.has(r)) refCell.fill = YELLOW_FILL;
-
-      const obsCell  = row.getCell(colObs);
-      const existing = obsCell.value ? String(obsCell.value).trim() : '';
-      obsCell.value  = existing ? existing + '; ' + obs.join('; ') : obs.join('; ');
-      obsCell.alignment = { wrapText: true };
-
-      stats.total++;
-      if (obs.length > 1 || tipo !== 'Libro') {
-        issues.push({ row: r, text: text.slice(0, 80) + (text.length > 80 ? '…' : ''), obs });
-      }
-    });
-
-    setStep('save', 'done');
-    setProgress(100, 'Listo');
-
-    const outBuf = await wb.xlsx.writeBuffer();
-    processedBlob = new Blob([outBuf], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
+    if (refList.length === 0) throw new Error(
+      `No se encontraron referencias desde la fila ${dataStart}.`
+    );
+    setStep('read','done'); setProg(100, `${refList.length} referencias listas`);
 
     setTimeout(() => {
-      progSec.style.display = 'none';
-      showResults(stats, tipos, issues);
-    }, 400);
+      document.getElementById('sec-prog').style.display = 'none';
+      document.getElementById('sec-editor').style.display = 'block';
+      renderEditor();
+    }, 350);
 
-  } catch (e) {
-    progSec.style.display = 'none';
-    uploadSec.style.opacity = '1';
-    uploadSec.style.pointerEvents = '';
-    processBtn.disabled = false;
-    showError(e.message || String(e));
+  } catch(e) {
+    document.getElementById('sec-prog').style.display = 'none';
+    secUp.style.opacity = '1'; secUp.style.pointerEvents = '';
+    btnProc.disabled = false;
+    showErr(e.message || String(e));
   }
 }
 
-// ─── MOSTRAR RESULTADOS ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
+// EDITOR — RENDER
+// ═══════════════════════════════════════════════════════
+function renderEditor() {
+  const obs = computeObs();
+  const active  = refList.filter(r => !r.deleted);
+  const deleted = refList.length - active.length;
 
-function showResults(stats, tipos, issues) {
-  const sec = document.getElementById('results-section');
-  sec.style.display = 'block';
+  document.getElementById('st-total').textContent = active.length;
+  document.getElementById('st-dup').textContent   = active.filter(r => obs[r.id]?.isDup).length;
+  document.getElementById('st-year').textContent  = active.filter(r => obs[r.id]?.tags.includes('Sin Año')).length;
+  document.getElementById('st-inc').textContent   = active.filter(r => obs[r.id]?.tags.includes('Referencia incompleta')).length;
+  document.getElementById('lhd-sub').textContent  = deleted > 0 ? `(${deleted} eliminada${deleted>1?'s':''})` : '';
 
-  const tipoTags = Object.entries(tipos)
-    .sort((a, b) => b[1] - a[1])
-    .map(([t, c]) => `<span class="tipo-tag"><span class="tipo-count">${c}</span> ${t}</span>`)
-    .join('');
-
-  const issueRows = issues.slice(0, 25).map(iss => {
-    const badges = [
-      iss.obs.includes('Referencia duplicada') ? '<span class="badge badge-dup">Duplicada</span>' : '',
-      iss.obs.includes('Sin Año')              ? '<span class="badge badge-year">Sin año</span>'   : '',
-      iss.obs.includes('Referencia incompleta')? '<span class="badge badge-inc">Incompleta</span>' : '',
-    ].join('');
-    return `<tr>
-      <td style="color:#5a5751;font-size:0.75rem;">${iss.row}</td>
-      <td>${iss.text}</td>
-      <td>${badges || '<span style="color:#9a9690">—</span>'}</td>
-      <td style="color:#5a5751">${iss.obs[0]}</td>
-    </tr>`;
-  }).join('');
-
-  const moreLine = issues.length > 25
-    ? `<tr><td colspan="4" class="more-note">… y ${issues.length - 25} referencia(s) más con observaciones en el archivo</td></tr>`
-    : '';
-
-  sec.innerHTML = `
-    <div class="results-header">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      <span>Procesamiento completado</span>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${stats.total}</div></div>
-      <div class="stat-card"><div class="stat-label">Duplicadas</div><div class="stat-value warn">${stats.dup}</div></div>
-      <div class="stat-card"><div class="stat-label">Sin año</div><div class="stat-value danger">${stats.sinAño}</div></div>
-      <div class="stat-card"><div class="stat-label">Incompletas</div><div class="stat-value info">${stats.inc}</div></div>
-    </div>
-
-    <div class="tipos-wrap">${tipoTags}</div>
-
-    ${issues.length > 0 ? `
-    <div class="table-wrap">
-      <div class="table-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Referencias con observaciones
-      </div>
-      <table class="issues-table">
-        <thead><tr><th>Fila</th><th>Referencia</th><th>Marcas</th><th>Tipo</th></tr></thead>
-        <tbody>${issueRows}${moreLine}</tbody>
-      </table>
-    </div>` : `<p style="font-size:0.85rem;color:#5a5751;margin-bottom:1.25rem;font-family:sans-serif;">No se detectaron problemas adicionales.</p>`}
-
-    <button class="btn-download" id="dl-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Descargar ${outputName}
-    </button>
-    <button class="btn-reset" id="reset-btn">↩ Procesar otro archivo</button>
-  `;
-
-  document.getElementById('dl-btn').addEventListener('click', () => {
-    const url = URL.createObjectURL(processedBlob);
-    const a = document.createElement('a');
-    a.href = url; a.download = outputName; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const visible = refList.filter(r => {
+    if (curFilter === 'all') return true;
+    if (r.deleted) return false;
+    const o = obs[r.id];
+    if (!o) return false;
+    if (curFilter === 'dup')  return o.isDup;
+    if (curFilter === 'year') return o.tags.includes('Sin Año');
+    if (curFilter === 'inc')  return o.tags.includes('Referencia incompleta');
+    if (curFilter === 'unk')  return o.tipo === 'Tipo no identificado';
+    return true;
   });
 
-  document.getElementById('reset-btn').addEventListener('click', () => {
-    selectedFile = null; processedBlob = null; outputName = '';
-    document.getElementById('file-card').style.display = 'none';
-    document.getElementById('upload-section').style.opacity = '1';
-    document.getElementById('upload-section').style.pointerEvents = '';
-    processBtn.disabled = true;
-    fileInput.value = '';
-    sec.style.display = 'none';
-    hideError();
-  });
+  document.getElementById('f-count').textContent = `${visible.length} mostrada${visible.length!==1?'s':''}`;
+  document.getElementById('list-body').innerHTML  = visible.length === 0
+    ? '<div class="empty-msg">No hay referencias que coincidan con este filtro.</div>'
+    : visible.map(r => renderItem(r, obs[r.id])).join('');
+  document.getElementById('btn-dl-lbl').textContent =
+    `Descargar archivo normalizado (${active.length} referencias)`;
 }
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderItem(r, o) {
+  const ob = o || { tipo:'', tags:[], isDup:false };
+  const tipoBadge  = ob.tipo ? `<span class="badge b-tipo">${esc(ob.tipo)}</span>` : '';
+  const warnBadges = ob.tags.filter(t => t !== ob.tipo).map(t => {
+    const cls = t.includes('duplicad') ? 'b-dup' : t.includes('Año') ? 'b-year' : 'b-inc';
+    return `<span class="badge ${cls}">${esc(t)}</span>`;
+  }).join('');
+  const newBadge = r.isNew ? '<span class="badge b-new">✂ nueva</span>' : '';
+  const rowLabel = r.excelRow ? `fila ${r.excelRow}` : 'nueva';
+  const shortTxt = r.text.length > 130 ? r.text.slice(0,130)+'…' : r.text;
+
+  const btns = r.deleted
+    ? `<button class="btn-s" data-a="undo" data-id="${r.id}">↩ Deshacer</button>`
+    : `<button class="btn-s"     data-a="edit"  data-id="${r.id}">✎ Editar</button>
+       <button class="btn-s"     data-a="split" data-id="${r.id}">✂ Cortar</button>
+       <button class="btn-s red" data-a="del"   data-id="${r.id}">✕ Eliminar</button>`;
+
+  return `<div class="ref-item${r.deleted?' deleted':''}${r.isNew?' is-new':''}" data-id="${r.id}">
+    <div class="ref-top">
+      <div class="ref-info">
+        <div class="ref-chips">
+          <span class="ref-num">${rowLabel}</span>${tipoBadge}${warnBadges}${newBadge}
+        </div>
+        <div class="ref-txt">${esc(shortTxt)}</div>
+      </div>
+      <div class="ref-btns">${btns}</div>
+    </div>
+    <div class="ref-expand" id="exp-${r.id}"></div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// EDITOR — ACCIONES
+// ═══════════════════════════════════════════════════════
+document.getElementById('list-body').addEventListener('click', e => {
+  const btn = e.target.closest('[data-a]'); if (!btn) return;
+  const { a, id } = btn.dataset;
+  if      (a==='edit')  openEdit(id);
+  else if (a==='split') openSplit(id);
+  else if (a==='del')   deleteRef(id);
+  else if (a==='undo')  undoRef(id);
+  else if (a==='se')    saveEdit(id);
+  else if (a==='ce')    closeExp(id);
+  else if (a==='as')    applySplit(id);
+  else if (a==='cs')    closeExp(id);
+});
+
+function closeAllExp() {
+  document.querySelectorAll('.ref-expand').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+}
+
+function openEdit(id) {
+  const r = refList.find(r=>r.id===id); if (!r) return;
+  closeAllExp();
+  const exp = document.getElementById('exp-'+id);
+  exp.innerHTML = `
+    <label class="exp-label">Texto de la referencia:</label>
+    <textarea class="exp-ta" rows="4">${esc(r.text)}</textarea>
+    <div class="exp-btns">
+      <button class="btn-s grn" data-a="se" data-id="${id}">Guardar cambios</button>
+      <button class="btn-s"     data-a="ce" data-id="${id}">Cancelar</button>
+    </div>`;
+  exp.style.display='block';
+  exp.querySelector('textarea').focus();
+}
+
+function saveEdit(id) {
+  const exp = document.getElementById('exp-'+id);
+  const txt = exp.querySelector('textarea').value.trim();
+  const r = refList.find(r=>r.id===id);
+  if (r && txt) r.text = cleanText(txt);
+  closeExp(id); renderEditor();
+}
+
+function openSplit(id) {
+  const r = refList.find(r=>r.id===id); if (!r) return;
+  closeAllExp();
+  const exp = document.getElementById('exp-'+id);
+  exp.innerHTML = `
+    <label class="exp-label">Referencia 1 — texto que permanece en la celda original:</label>
+    <textarea class="exp-ta t1" rows="4">${esc(r.text)}</textarea>
+    <div class="exp-sep">✂ punto de corte</div>
+    <label class="exp-label">Referencia 2 — nueva entrada (escribe o pega aquí):</label>
+    <textarea class="exp-ta t2" rows="4" placeholder="Pega o escribe la segunda referencia…"></textarea>
+    <div class="exp-btns">
+      <button class="btn-s grn" data-a="as" data-id="${id}">Aplicar corte</button>
+      <button class="btn-s"     data-a="cs" data-id="${id}">Cancelar</button>
+    </div>`;
+  exp.style.display='block';
+  exp.querySelector('.t1').focus();
+}
+
+function applySplit(id) {
+  const exp = document.getElementById('exp-'+id);
+  const t1 = exp.querySelector('.t1').value.trim();
+  const t2 = exp.querySelector('.t2').value.trim();
+  if (!t1 || !t2) { alert('Las dos partes deben tener contenido.'); return; }
+  const r = refList.find(r=>r.id===id); if (!r) return;
+  r.text = cleanText(t1);
+  const newR = { id: uid(), excelRow: null, parentId: id, text: cleanText(t2), deleted: false, isNew: true };
+  refList.splice(refList.indexOf(r)+1, 0, newR);
+  closeExp(id); renderEditor();
+}
+
+function deleteRef(id) { const r=refList.find(r=>r.id===id); if(r) r.deleted=true;  closeExp(id); renderEditor(); }
+function undoRef(id)   { const r=refList.find(r=>r.id===id); if(r) r.deleted=false; renderEditor(); }
+function closeExp(id)  { const el=document.getElementById('exp-'+id); if(el){el.style.display='none';el.innerHTML='';} }
+
+document.getElementById('filters').addEventListener('click', e => {
+  const btn = e.target.closest('.f-btn'); if (!btn) return;
+  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  curFilter = btn.dataset.f;
+  renderEditor();
+});
+
+// ═══════════════════════════════════════════════════════
+// DESCARGA — reconstruye desde originalBuf (preserva todo el formato original)
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-dl').addEventListener('click', downloadFile);
+
+async function downloadFile() {
+  const btn = document.getElementById('btn-dl');
+  btn.disabled = true;
+  document.getElementById('btn-dl-lbl').textContent = 'Generando archivo…';
+
+  try {
+    const obs = computeObs();
+
+    // ── Cargar workbook FRESCO desde el buffer original ────────
+    // Esto garantiza que todo el formato original (celdas combinadas,
+    // anchos de columna, colores, estilos) quede perfectamente preservado.
+    const dlWb = new ExcelJS.Workbook();
+    await dlWb.xlsx.load(originalBuf.slice(0));
+    const dlWs = dlWb.worksheets[0];
+
+    // ── Agregar encabezado Observaciones si no existe ──────────
+    let dlColObs = null;
+    dlWs.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
+      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
+    });
+    if (!dlColObs) {
+      dlColObs = dlWs.columnCount + 1;
+      const hc = dlWs.getRow(headerRow).getCell(dlColObs);
+      hc.value = 'Observaciones';
+      hc.font  = { bold: true, name: 'Arial', size: 11 };
+    }
+
+    // ── Aplicar ediciones a filas originales ───────────────────
+    refList.filter(r => !r.isNew).forEach(r => {
+      const row     = dlWs.getRow(r.excelRow);
+      const refCell = row.getCell(colRef);
+      const obsCell = row.getCell(dlColObs);
+
+      if (r.deleted) {
+        refCell.value = null;
+        obsCell.value = null;
+        return;
+      }
+
+      refCell.value = r.text;
+      const o = obs[r.id];
+      if (o && o.tags.length) {
+        obsCell.value     = o.tags.join('; ');
+        obsCell.alignment = { wrapText: true };
+      }
+      if (o && o.isDup) refCell.fill = YELLOW_FILL;
+    });
+
+    // ── Insertar filas para referencias cortadas ───────────────
+    // Procesar de abajo hacia arriba para no desplazar posiciones
+    const newRefs = refList.filter(r => r.isNew && !r.deleted);
+    const byParent = {};
+    newRefs.forEach(r => {
+      if (!byParent[r.parentId]) byParent[r.parentId] = [];
+      byParent[r.parentId].push(r);
+    });
+
+    Object.entries(byParent)
+      .map(([pid, children]) => {
+        const parent = refList.find(r => r.id===pid);
+        return { excelRow: parent ? parent.excelRow : null, children };
+      })
+      .filter(g => g.excelRow != null)
+      .sort((a,b) => b.excelRow - a.excelRow)
+      .forEach(({ excelRow, children }) => {
+        children.forEach((r, i) => {
+          dlWs.insertRow(excelRow + 1 + i, []);
+          const nr = dlWs.getRow(excelRow + 1 + i);
+          nr.getCell(colRef).value = r.text;
+          const o = obs[r.id];
+          if (o && o.tags.length) {
+            nr.getCell(dlColObs).value     = o.tags.join('; ');
+            nr.getCell(dlColObs).alignment = { wrapText: true };
+          }
+          if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
+        });
+      });
+
+    // ── Escribir y descargar ───────────────────────────────────
+    const outBuf = await dlWb.xlsx.writeBuffer();
+    const blob   = new Blob([outBuf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href = url; a.download = outputName; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+  } catch(e) {
+    alert('Error al generar el archivo:\n' + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    const active = refList.filter(r => !r.deleted).length;
+    document.getElementById('btn-dl-lbl').textContent =
+      `Descargar archivo normalizado (${active} referencias)`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-reset').addEventListener('click', () => {
+  originalBuf = wb = ws = colRef = colObs = headerRow = dataStart = null;
+  refList = []; curFilter = 'all';
+  selectedFile = null; outputName = '';
+  fileInput.value = '';
+  document.getElementById('file-card').style.display  = 'none';
+  document.getElementById('sec-editor').style.display = 'none';
+  const su = document.getElementById('sec-upload');
+  su.style.opacity='1'; su.style.pointerEvents='';
+  btnProc.disabled = true;
+  hideErr();
+});
 </script>
 </body>
 </html>
