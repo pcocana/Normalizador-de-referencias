@@ -95,6 +95,8 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .badge    { font-size: .67rem; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
 .b-tipo   { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
 .b-dup    { background: var(--amber-bg); color: var(--amber); }
+.b-dup-bas{ background: var(--amber-bg); color: var(--amber); }
+.b-dup-com{ background: #fde8e8; color: #b91c1c; font-weight:600; }
 .b-year   { background: var(--red-bg);   color: var(--red); }
 .b-inc    { background: var(--blue-bg);  color: var(--blue); }
 .b-num    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
@@ -241,6 +243,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 // CONSTANTES
 // ═══════════════════════════════════════════════════════
 const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
+const COL_TIPO_NAMES = ["tipo","tipo de bibliografía","tipo bibliografía","tipo bibliografa","bibliografía básica/complementaria","básica/complementaria"];
 const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
 const STEP_DEFS   = [
   { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
@@ -254,7 +257,7 @@ const STEP_DEFS   = [
 // ═══════════════════════════════════════════════════════
 let originalBuf = null;   // ← buffer original sin modificar (para descarga)
 let wb = null, ws = null;
-let colRef = null, colObs = null, headerRow = null, dataStart = null;
+let colRef = null, colObs = null, colTipo = null, headerRow = null, dataStart = null;
 let refList = [];
 let curFilter = 'all';
 let outputName = '';
@@ -342,8 +345,12 @@ function computeObs() {
     const tags = [tipo];
     if (isIncomplete(r.text)) tags.push('Referencia incompleta');
     if (!hasYear(r.text))     tags.push('Sin Año');
-    if (dupSet.has(r.id))     tags.push('Referencia duplicada');
-    result[r.id] = { tipo, tags, isDup: dupSet.has(r.id) };
+    if (dupSet.has(r.id)) {
+      const tipoRef = r.tipoRef || '';
+      const dupLabel = tipoRef ? `Duplicada · ${tipoRef}` : 'Referencia duplicada';
+      tags.push(dupLabel);
+    }
+    result[r.id] = { tipo, tags, isDup: dupSet.has(r.id), tipoRef: r.tipoRef||'' };
   });
   return result;
 }
@@ -430,7 +437,8 @@ async function loadFile() {
       row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
         if (colRef) return;
         const v = cell.value != null ? String(cell.value).trim().toLowerCase() : '';
-        if (COL_NAMES.includes(v)) { colRef = cIdx; headerRow = rIdx; }
+        if (COL_NAMES.includes(v))      { colRef = cIdx; headerRow = rIdx; }
+        if (COL_TIPO_NAMES.includes(v)) { colTipo = cIdx; }
       });
     });
     if (!colRef) throw new Error(
@@ -477,11 +485,29 @@ async function loadFile() {
       const raw  = cell.value != null ? String(cell.value).trim() : '';
       if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
       const { text: strippedText, stripped } = stripLeadingNumber(raw);
+      // Leer tipo (Básica / Complementaria) si existe la columna
+      let tipoRef = '';
+      if (colTipo) {
+        const tCell = row.getCell(colTipo);
+        const tVal  = tCell.value != null ? String(tCell.value).trim() : '';
+        if (/básic/i.test(tVal))  tipoRef = 'Básica';
+        else if (/comp/i.test(tVal)) tipoRef = 'Complementaria';
+        else if (tVal) tipoRef = tVal;
+      }
+      // Si no hay columna tipo, intentar inferir por celda adyacente
+      if (!tipoRef) {
+        for (let adj = 1; adj <= 3; adj++) {
+          const aVal = String(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value || '').trim();
+          if (/básic/i.test(aVal))  { tipoRef = 'Básica'; break; }
+          if (/comp/i.test(aVal))   { tipoRef = 'Complementaria'; break; }
+        }
+      }
       refList.push({
         id:            uid(),
         excelRow:      rIdx,
         parentId:      null,
         text:          cleanText(strippedText),
+        tipoRef,
         deleted:       false,
         isNew:         false,
         hadLeadingNum: stripped
@@ -550,7 +576,12 @@ function renderItem(r, o) {
   const ob = o || { tipo:'', tags:[], isDup:false };
   const tipoBadge  = ob.tipo ? `<span class="badge b-tipo">${esc(ob.tipo)}</span>` : '';
   const warnBadges = ob.tags.filter(t => t !== ob.tipo).map(t => {
-    const cls = t.includes('duplicad') ? 'b-dup' : t.includes('Año') ? 'b-year' : 'b-inc';
+    let cls;
+    if (t.includes('Duplicada · Complementaria'))   cls = 'b-dup-com';
+    else if (t.includes('Duplicada · Básica'))      cls = 'b-dup-bas';
+    else if (t.includes('duplicad') || t.includes('Duplicada')) cls = 'b-dup';
+    else if (t.includes('Año'))                     cls = 'b-year';
+    else                                            cls = 'b-inc';
     return `<span class="badge ${cls}">${esc(t)}</span>`;
   }).join('');
   const newBadge = r.isNew ? '<span class="badge b-new">✂ nueva</span>' : '';
@@ -769,7 +800,7 @@ async function downloadFile() {
 // RESET
 // ═══════════════════════════════════════════════════════
 document.getElementById('btn-reset').addEventListener('click', () => {
-  originalBuf = wb = ws = colRef = colObs = headerRow = dataStart = null;
+  originalBuf = wb = ws = colRef = colObs = colTipo = headerRow = dataStart = null;
   refList = []; curFilter = 'all';
   selectedFile = null; outputName = '';
   fileInput.value = '';
