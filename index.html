@@ -327,6 +327,26 @@ function normalKey(text) {
   return text.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,' ').trim();
 }
 
+// Normaliza los distintos nombres que puede tener el tipo de referencia
+function normalizaTipo(val) {
+  if (!val) return '';
+  const v = val.trim();
+  // Grupo PRINCIPAL (obligatoria): Básica, Base, Obligatoria
+  if (/b[áa]s[i]?c/i.test(v) || /\bbase\b/i.test(v) || /obligatori/i.test(v)) return v;
+  // Grupo SECUNDARIA (opcional/complementaria): Complementaria, Recomendada, Opcional, Sugerida, Adicional
+  if (/complement/i.test(v) || /recomend/i.test(v) || /opcional/i.test(v) ||
+      /sugerid/i.test(v)    || /adicional/i.test(v)) return v;
+  // Cualquier otro valor: devolver tal como está
+  return v;
+}
+
+// Determina si un tipo es 'principal' (Básica/Obligatoria) o 'secundaria' (Complementaria/Recomendada)
+function esSecundaria(tipoRef) {
+  if (!tipoRef) return false;
+  return /complement/i.test(tipoRef) || /recomend/i.test(tipoRef) ||
+         /opcional/i.test(tipoRef)   || /sugerid/i.test(tipoRef)  || /adicional/i.test(tipoRef);
+}
+
 function computeObs() {
   const active = refList.filter(r => !r.deleted);
   const nmap = {};
@@ -490,16 +510,13 @@ async function loadFile() {
       if (colTipo) {
         const tCell = row.getCell(colTipo);
         const tVal  = tCell.value != null ? String(tCell.value).trim() : '';
-        if (/básic/i.test(tVal))  tipoRef = 'Básica';
-        else if (/comp/i.test(tVal)) tipoRef = 'Complementaria';
-        else if (tVal) tipoRef = tVal;
+        tipoRef = normalizaTipo(tVal);
       }
       // Si no hay columna tipo, intentar inferir por celda adyacente
       if (!tipoRef) {
         for (let adj = 1; adj <= 3; adj++) {
           const aVal = String(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value || '').trim();
-          if (/básic/i.test(aVal))  { tipoRef = 'Básica'; break; }
-          if (/comp/i.test(aVal))   { tipoRef = 'Complementaria'; break; }
+          const nt = normalizaTipo(aVal); if (nt) { tipoRef = nt; break; }
         }
       }
       refList.push({
@@ -577,9 +594,10 @@ function renderItem(r, o) {
   const tipoBadge  = ob.tipo ? `<span class="badge b-tipo">${esc(ob.tipo)}</span>` : '';
   const warnBadges = ob.tags.filter(t => t !== ob.tipo).map(t => {
     let cls;
-    if (t.includes('Duplicada · Complementaria'))   cls = 'b-dup-com';
-    else if (t.includes('Duplicada · Básica'))      cls = 'b-dup-bas';
-    else if (t.includes('duplicad') || t.includes('Duplicada')) cls = 'b-dup';
+    if (t.startsWith('Duplicada · ')) {
+      const tr = t.replace('Duplicada · ','');
+      cls = esSecundaria(tr) ? 'b-dup-com' : 'b-dup-bas';
+    } else if (t.includes('duplicad') || t.includes('Duplicada')) cls = 'b-dup';
     else if (t.includes('Año'))                     cls = 'b-year';
     else                                            cls = 'b-inc';
     return `<span class="badge ${cls}">${esc(t)}</span>`;
