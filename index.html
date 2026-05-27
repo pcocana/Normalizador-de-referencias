@@ -1,865 +1,1130 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Normalizador APA 7</title>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Asistente de Verificación APA 7 · Biblioteca PUCV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap');
+
 :root {
-  --bg:#f8f7f4; --surface:#fff; --surface2:#f1f0ed;
-  --border:#e2e0da; --border2:#ccc9c0;
-  --text:#1a1916; --text2:#5a5751; --text3:#9a9690;
-  --accent:#1a1916;
-  --amber:#854f0b; --amber-bg:#faeeda;
-  --red:#a32d2d;   --red-bg:#fcebeb;
-  --blue:#185fa5;  --blue-bg:#e6f1fb;
-  --green:#3b6d11; --green-bg:#eaf3de;
+  --navy:   #0d2240;
+  --navy2:  #163459;
+  --gold:   #c9952a;
+  --gold2:  #e8b84b;
+  --cream:  #faf8f4;
+  --paper:  #f2efe9;
+  --border: #d5cfc4;
+  --text:   #1a1a1a;
+  --muted:  #6b6456;
+  --green:  #1a6040;
+  --green-bg:#eaf4ee;
+  --red:    #8b1a1a;
+  --red-bg: #fdf0f0;
+  --blue:   #1a3d6b;
+  --blue-bg:#eef2f9;
+  --amber:  #7a5200;
+  --amber-bg:#fff8e6;
+  --sans:   'IBM Plex Sans', sans-serif;
+  --mono:   'IBM Plex Mono', monospace;
+  --display:'Playfair Display', serif;
 }
-body { font-family: Georgia, serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
-header h1 { font-size: 1.1rem; font-weight: 700; }
-header p  { font-size: .74rem; opacity: .6; margin-top: 2px; font-family: sans-serif; }
-main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--paper); color: var(--text); min-height: 100vh; }
 
-/* UPLOAD */
-.drop-zone { border: 2px dashed var(--border2); border-radius: 12px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--surface); transition: border-color .2s, background .2s; }
-.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--surface2); }
-.drop-icon { width: 50px; height: 50px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; margin-bottom: .85rem; }
-.drop-zone h2 { font-size: .98rem; margin-bottom: .3rem; }
-.drop-zone p  { font-size: .82rem; color: var(--text2); font-family: sans-serif; }
-.browse { display: inline-block; margin-top: .7rem; font-size: .82rem; font-family: sans-serif; padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border2); cursor: pointer; background: var(--surface); }
-.browse:hover { background: var(--surface2); }
-#file-input { display: none; }
-
-.file-card { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px; margin-top: 10px; font-family: sans-serif; }
-.file-card .fname { font-size: .87rem; font-weight: 600; flex: 1; }
-.file-card .fsize { font-size: .76rem; color: var(--text3); }
-
-.btn-main { width: 100%; margin-top: 10px; padding: 11px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: none; background: var(--accent); color: #fff; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-main:hover { opacity: .85; }
-.btn-main:disabled { opacity: .35; cursor: not-allowed; }
-
-/* PROGRESS */
-.prog-wrap  { margin-top: 1.5rem; }
-.prog-label { font-size: .82rem; color: var(--text2); font-family: sans-serif; margin-bottom: 7px; }
-.prog-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-.prog-fill  { height: 100%; background: var(--accent); border-radius: 2px; transition: width .35s; width: 0; }
-.steps { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.step { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text3); font-family: sans-serif; }
-.step.active { color: var(--text); }
-.step.done   { color: var(--text2); }
-.step-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; transition: background .2s, box-shadow .2s; }
-.step.done .step-dot, .step.active .step-dot { background: var(--accent); }
-.step.active .step-dot { box-shadow: 0 0 0 3px rgba(26,25,22,.12); }
-
-/* ERROR */
-.err { display: flex; gap: 9px; align-items: flex-start; background: var(--red-bg); border: 1px solid #f7c1c1; border-radius: 8px; padding: 11px 13px; margin-top: 10px; font-size: .82rem; color: var(--red); font-family: sans-serif; white-space: pre-line; }
-
-/* EDITOR */
-#sec-editor { margin-top: 1.75rem; }
-.ed-header   { margin-bottom: 1.2rem; }
-.ed-header h2 { font-size: 1rem; margin-bottom: 3px; }
-.ed-header p  { font-size: .8rem; color: var(--text2); font-family: sans-serif; }
-
-.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 1.1rem; }
-.scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-.sl { font-size: .67rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); font-family: sans-serif; margin-bottom: 3px; }
-.sv { font-size: 1.45rem; font-weight: 700; }
-.sv.warn   { color: var(--amber); }
-.sv.danger { color: var(--red); }
-.sv.info   { color: var(--blue); }
-
-.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 9px; }
-.f-btn { font-size: .77rem; font-family: sans-serif; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; transition: background .15s; }
-.f-btn:hover { background: var(--surface2); }
-.f-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-.f-count { font-family: sans-serif; font-size: .77rem; color: var(--text3); margin-left: auto; }
-
-.list-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); margin-bottom: 1.1rem; }
-.list-hd   { padding: 8px 14px; font-size: .77rem; font-weight: 600; font-family: sans-serif; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.list-body { max-height: 58vh; overflow-y: auto; }
-
-.ref-item { border-bottom: 1px solid var(--border); padding: 10px 14px; }
-.ref-item:last-child { border-bottom: none; }
-.ref-item:hover { background: var(--surface2); }
-.ref-item.deleted { background: var(--red-bg); opacity: .5; }
-.ref-item.is-new  { background: var(--green-bg); }
-
-.ref-top  { display: flex; align-items: flex-start; gap: 10px; }
-.ref-info { flex: 1; min-width: 0; }
-.ref-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 5px; }
-.ref-num  { font-size: .68rem; color: var(--text3); font-family: monospace; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
-.badge    { font-size: .67rem; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
-.b-tipo   { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
-.b-dup    { background: var(--amber-bg); color: var(--amber); }
-.b-dup-bas{ background: var(--amber-bg); color: var(--amber); }
-.b-dup-com{ background: #fde8e8; color: #b91c1c; font-weight:600; }
-.b-year   { background: var(--red-bg);   color: var(--red); }
-.b-inc    { background: var(--blue-bg);  color: var(--blue); }
-.b-num    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
-.b-new    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
-.ref-txt  { font-size: .81rem; color: var(--text2); font-family: sans-serif; line-height: 1.5; }
-
-.ref-btns { display: flex; gap: 5px; flex-shrink: 0; }
-.btn-s    { font-size: .73rem; font-family: sans-serif; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; white-space: nowrap; transition: background .12s; }
-.btn-s:hover { background: var(--surface2); }
-.btn-s.red { color: var(--red); border-color: #f7c1c1; }
-.btn-s.red:hover { background: var(--red-bg); }
-.btn-s.grn { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-s.grn:hover { opacity: .85; }
-
-.ref-expand { margin-top: 10px; display: none; }
-.exp-label  { display: block; font-size: .73rem; font-family: sans-serif; color: var(--text3); margin-bottom: 4px; }
-.exp-ta     { width: 100%; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; font-family: sans-serif; font-size: .81rem; resize: vertical; background: var(--surface); color: var(--text); line-height: 1.5; }
-.exp-ta:focus { outline: none; border-color: var(--accent); }
-.exp-sep    { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: .7rem; font-family: sans-serif; color: var(--text3); }
-.exp-sep::before, .exp-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.exp-btns   { display: flex; gap: 6px; margin-top: 8px; }
-
-.empty-msg { padding: 2.5rem; text-align: center; color: var(--text3); font-family: sans-serif; font-size: .84rem; }
-
-.dl-area    { display: flex; gap: 10px; }
-.btn-dl     { flex: 1; padding: 12px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: 2px solid var(--accent); background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
-.btn-dl:hover { background: var(--surface2); }
-.btn-dl:disabled { opacity: .4; cursor: not-allowed; }
-.btn-reset  { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-family: sans-serif; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); }
-.btn-reset:hover { background: var(--surface2); color: var(--text); }
-
-footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--text3); font-family: sans-serif; border-top: 1px solid var(--border); margin-top: 2rem; }
-
-@media (max-width: 600px) {
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
-  header { padding: 1rem; }
-  main   { padding: 1.2rem 1rem 3rem; }
-  .ref-btns { flex-direction: column; }
+/* HEADER */
+header {
+  background: var(--navy);
+  padding: 0 1.5rem;
+  display: flex; align-items: center; gap: 1rem;
+  height: 58px;
+  border-bottom: 3px solid var(--gold);
+  position: sticky; top: 0; z-index: 100;
 }
+.logo { width:34px;height:34px;background:var(--gold);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--navy);font-size:.9rem;font-weight:700;flex-shrink:0; }
+.h-title { font-family:var(--display);color:white;font-size:1rem; }
+.h-sub { font-size:.68rem;color:rgba(255,255,255,.5);font-weight:300;letter-spacing:.03em; }
+.h-badge { margin-left:auto;background:rgba(201,149,42,.15);border:1px solid rgba(201,149,42,.35);color:var(--gold2);font-family:var(--mono);font-size:.62rem;padding:.2rem .55rem;border-radius:3px;letter-spacing:.04em; }
+
+/* PROGRESS BAR - sticky top */
+.global-progress {
+  height: 3px;
+  background: var(--paper);
+  position: sticky; top: 58px; z-index: 99;
+}
+.global-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--navy));
+  width: 0%;
+  transition: width .4s ease;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+/* SETUP PANEL */
+.setup-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.setup-title {
+  font-family: var(--display);
+  font-size: 1.1rem;
+  color: var(--navy);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border);
+}
+.upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .9rem; }
+@media(max-width:580px){ .upload-row{grid-template-columns:1fr;} }
+
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 7px;
+  padding: 1rem;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .2s, background .2s;
+}
+.upload-zone:hover { border-color: var(--gold); background: #fffdf7; }
+.upload-zone.ok { border-style:solid; border-color:var(--green); background:var(--green-bg); }
+.upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer; }
+.upload-lbl { font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em; }
+.upload-desc { font-size:.75rem;color:var(--muted);margin-top:.2rem; }
+.upload-st { font-size:.72rem;font-family:var(--mono);color:var(--green);margin-top:.35rem;font-weight:500; }
+
+.config-strip { display:flex;gap:1rem;align-items:center;flex-wrap:wrap; }
+.cfg-item { display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--muted); }
+.cfg-item select { border:1px solid var(--border);border-radius:4px;padding:.3rem .5rem;font-family:var(--sans);font-size:.78rem;background:white;color:var(--text); }
+
+.btn-run {
+  margin-left: auto;
+  background: var(--navy); color: white;
+  border: none; padding: .6rem 1.4rem;
+  font-family: var(--sans); font-size: .85rem; font-weight: 600;
+  border-radius: 5px; cursor: pointer;
+  transition: background .2s;
+}
+.btn-run:hover { background: var(--navy2); }
+.btn-run:disabled { opacity:.35; cursor:not-allowed; }
+
+/* STATS BAR */
+.stats-bar {
+  display: none;
+  background: var(--navy);
+  border-radius: 8px;
+  padding: .7rem 1.1rem;
+  margin-bottom: 1rem;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.stats-bar.show { display: flex; }
+.stat-item { text-align: center; }
+.stat-n { font-family:var(--display);font-size:1.4rem;color:white;line-height:1; }
+.stat-n.g { color: #6ee7a8; }
+.stat-n.r { color: #f9a0a0; }
+.stat-n.a { color: var(--gold2); }
+.stat-lbl { font-size:.62rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em; }
+.stat-divider { width:1px;background:rgba(255,255,255,.15);align-self:stretch; }
+
+.export-btn {
+  margin-left: auto;
+  background: var(--gold); color: var(--navy);
+  border: none; padding: .45rem 1rem;
+  font-family: var(--sans); font-size: .78rem; font-weight: 700;
+  border-radius: 5px; cursor: pointer;
+}
+.export-btn:hover { background: var(--gold2); }
+.export-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* FILTER ROW */
+.filter-row {
+  display: none;
+  gap: .5rem; margin-bottom: .75rem; align-items: center; flex-wrap: wrap;
+}
+.filter-row.show { display: flex; }
+.f-input {
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: .4rem .7rem; font-family:var(--sans); font-size:.8rem;
+  background:white; flex:1; min-width:180px;
+}
+.chip {
+  padding:.28rem .7rem; border-radius:99px; font-size:.72rem; font-weight:600;
+  border:1px solid var(--border); background:white; color:var(--muted);
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.chip.on { background:var(--navy); border-color:var(--navy); color:white; }
+
+/* EMPTY */
+.empty {
+  text-align:center; padding:3.5rem 1rem; color:var(--muted);
+}
+.empty-icon { font-size:2.8rem; margin-bottom:.75rem; }
+.empty-t { font-family:var(--display);font-size:1.15rem;color:var(--navy);margin-bottom:.35rem; }
+.empty-s { font-size:.83rem; }
+
+/* ══ REVIEW CARDS ══ */
+.review-list { display: flex; flex-direction: column; gap: .85rem; }
+
+.ref-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.ref-card:hover { box-shadow: 0 2px 12px rgba(13,34,64,.07); }
+.ref-card.resolved-ok   { border-color: var(--green); }
+.ref-card.resolved-no   { border-color: #c8b8b8; }
+.ref-card.resolved-manual { border-color: var(--gold); }
+
+/* card top strip */
+.card-header {
+  padding: .7rem 1rem;
+  display: flex; align-items: flex-start; gap: .6rem;
+  border-bottom: 1px solid var(--paper);
+  background: var(--cream);
+}
+.card-num { font-family:var(--mono);font-size:.7rem;color:var(--muted);padding-top:.1rem;flex-shrink:0; }
+.card-ref { font-size:.8rem;line-height:1.5;flex:1; }
+.card-tipo { flex-shrink:0; }
+.tipo-pill {
+  display:inline-block;padding:.15rem .5rem;border-radius:99px;
+  font-size:.65rem;font-weight:700;background:var(--paper);
+  color:var(--muted);border:1px solid var(--border);white-space:nowrap;
+}
+.card-status {
+  flex-shrink:0; font-size:.72rem; font-weight:600; padding:.2rem .55rem;
+  border-radius:4px; white-space:nowrap;
+}
+.st-pending  { background:var(--paper);   color:var(--muted); }
+.st-found    { background:var(--green-bg); color:var(--green); }
+.st-notfound { background:#f5efef; color:#7a4444; }
+.st-manual   { background:var(--amber-bg); color:var(--amber); }
+
+/* candidates area */
+.card-body { padding: .75rem 1rem; }
+.candidates-title { font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.5rem; }
+
+.candidates { display: flex; flex-direction: column; gap: .4rem; }
+
+.candidate {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .55rem .75rem;
+  display: flex; align-items: center; gap: .75rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  background: white;
+}
+.candidate:hover { border-color: var(--navy); background: var(--blue-bg); }
+.candidate.selected { border-color: var(--green); background: var(--green-bg); }
+
+.cand-score {
+  font-family: var(--mono); font-size: .72rem; font-weight: 700;
+  color: white; background: var(--muted);
+  padding: .15rem .4rem; border-radius: 3px;
+  flex-shrink: 0; min-width: 36px; text-align: center;
+}
+.cand-score.high { background: var(--green); }
+.cand-score.med  { background: var(--amber); }
+.cand-score.low  { background: var(--red); }
+
+.cand-info { flex: 1; min-width: 0; }
+.cand-titulo { font-size:.8rem;font-weight:500;color:var(--text);line-height:1.3; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.cand-meta { font-size:.7rem;color:var(--muted);margin-top:.1rem; }
+
+.cand-ejemplares {
+  font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--navy);
+  flex-shrink:0; text-align:right;
+}
+.cand-ejemplares span { display:block;font-size:.62rem;font-weight:400;color:var(--muted); }
+
+/* card actions */
+.card-actions {
+  padding: .5rem 1rem .65rem;
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+}
+.btn-confirm {
+  background: var(--navy); color: white;
+  border:none; padding:.38rem .85rem;
+  font-family:var(--sans); font-size:.75rem; font-weight:600;
+  border-radius:4px; cursor:pointer; transition:background .15s;
+}
+.btn-confirm:hover { background:var(--green); }
+.btn-notfound {
+  background:transparent; color:var(--muted);
+  border:1px solid var(--border); padding:.36rem .8rem;
+  font-family:var(--sans); font-size:.75rem; font-weight:500;
+  border-radius:4px; cursor:pointer; transition:all .15s;
+}
+.btn-notfound:hover { border-color:var(--red);color:var(--red); }
+.btn-undo {
+  background:transparent; color:var(--muted);
+  border:1px solid var(--border); padding:.36rem .7rem;
+  font-family:var(--sans); font-size:.72rem;
+  border-radius:4px; cursor:pointer;
+}
+.btn-undo:hover { background:var(--paper); }
+.link-search {
+  margin-left:auto; font-size:.73rem; color:var(--blue);
+  text-decoration:none; display:flex;align-items:center;gap:.25rem;
+  border:1px solid #c5d3e8; border-radius:4px; padding:.32rem .6rem;
+  background:var(--blue-bg); transition:background .15s;
+}
+.link-search:hover { background:#d8e4f4; }
+
+/* resolved overlay */
+.resolved-banner {
+  display: none;
+  padding: .5rem 1rem;
+  font-size: .78rem; font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+.resolved-banner.show { display: flex; align-items: center; gap: .4rem; }
+.resolved-banner.ok   { color:var(--green); background:var(--green-bg); }
+.resolved-banner.no   { color: #7a4444;    background: #f5efef; }
+.resolved-banner.manual { color:var(--amber); background:var(--amber-bg); }
+
+/* no-candidates message */
+.no-cands { font-size:.78rem;color:var(--muted);font-style:italic;padding:.3rem 0; }
+
+/* debug line */
+.debug-line {
+  font-family: var(--mono); font-size: .68rem; color: var(--amber);
+  background: var(--amber-bg); border-radius: 4px;
+  padding: .3rem .6rem; margin-bottom: .5rem;
+  word-break: break-all;
+}
+
+/* manual search */
+.manual-search-wrap {
+  margin-top: .85rem;
+  border-top: 1px dashed var(--border);
+  padding-top: .7rem;
+}
+.manual-label { font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.4rem; }
+.manual-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 5px;
+  padding: .42rem .7rem; font-family: var(--sans); font-size: .8rem;
+  background: white; color: var(--text);
+  transition: border-color .15s;
+}
+.manual-input:focus { outline: none; border-color: var(--navy); }
+.manual-results { margin-top: .4rem; display: flex; flex-direction: column; gap: .35rem; }
+
+/* tipo biblio toggle */
+.tipo-toggle { display:flex;gap:.3rem;margin-top:.3rem; }
+.tipo-btn {
+  font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:3px;
+  border:1px solid var(--border);background:white;color:var(--muted);cursor:pointer;
+  transition:all .15s;
+}
+.tipo-btn.oblig.on  { background:#e8f4ed;border-color:var(--green);color:var(--green); }
+.tipo-btn.compl.on  { background:#eef2f9;border-color:var(--blue);color:var(--blue); }
+
+/* planilla fields */
+.planilla-fields {
+  display:grid;grid-template-columns:1fr 1fr 2fr;gap:.5rem;
+  margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);
+}
+.pf-group { display:flex;flex-direction:column;gap:.25rem; }
+.pf-label { font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted); }
+.pf-input {
+  border:1px solid var(--border);border-radius:4px;padding:.35rem .6rem;
+  font-family:var(--sans);font-size:.8rem;background:white;color:var(--text);
+}
+@media(max-width:580px){ .planilla-fields{grid-template-columns:1fr;} }
+.art-link {
+  font-size:.75rem; color:var(--blue); text-decoration:none;
+  border:1px solid #c5d3e8; border-radius:4px; padding:.32rem .65rem;
+  background:var(--blue-bg); display:flex;align-items:center;gap:.3rem;
+}
+.art-link:hover { background:#d8e4f4; }
 </style>
 </head>
 <body>
 
 <header>
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
-  </svg>
+  <div class="logo">B</div>
   <div>
-    <h1>Normalizador de Referencias APA 7</h1>
-    <p>Limpieza · Clasificación · Duplicados · Validación · Editor integrado</p>
+    <div class="h-title">Asistente de Verificación APA 7</div>
+    <div class="h-sub">Sistema de Bibliotecas · PUCV</div>
   </div>
+  <div class="h-badge">v3.0 · revisión humana</div>
 </header>
+<div class="global-progress"><div class="global-progress-fill" id="gProgress"></div></div>
 
-<main>
+<div class="container">
 
-<!-- UPLOAD -->
-<div id="sec-upload">
-  <div class="drop-zone" id="drop-zone">
-    <div class="drop-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-      </svg>
+  <!-- SETUP -->
+  <div class="setup-panel" id="setupPanel">
+    <div class="setup-title">Cargar archivos</div>
+    <div class="upload-row">
+      <div class="upload-zone" id="zonePlanilla">
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="onFilePlanilla(event).catch(console.error)"/>
+        <div class="upload-lbl">📋 Planilla de bibliografía</div>
+        <div class="upload-desc">Excel con columnas A=Clave, B=Asignatura, C=Tipo, D=Referencias</div>
+        <div class="upload-st" id="stPlanilla"></div>
+      </div>
+      <div class="upload-zone" id="zoneCat">
+        <input type="file" accept=".csv" onchange="onFileCat(event).catch(console.error)"/>
+        <div class="upload-lbl">📚 Catálogo KOHA</div>
+        <div class="upload-desc">CSV con <code>titulo, autor, ano, numero_ejemplares</code></div>
+        <div class="upload-st" id="stCat"></div>
+      </div>
     </div>
-    <h2>Arrastra tu archivo Excel aquí</h2>
-    <p>Columna de referencias con nombre: Referencias, Bibliografía, Cita o similar</p>
-    <label class="browse" for="file-input">Seleccionar archivo .xlsx</label>
-  </div>
-  <input type="file" id="file-input" accept=".xlsx">
-
-  <div class="file-card" id="file-card" style="display:none">
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-    </svg>
-    <span class="fname" id="fname"></span>
-    <span class="fsize" id="fsize"></span>
-  </div>
-  <div class="err" id="err-box" style="display:none">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span id="err-msg"></span>
-  </div>
-  <button class="btn-main" id="btn-proc" disabled>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Cargar y abrir editor de referencias
-  </button>
-</div>
-
-<!-- PROGRESS -->
-<div id="sec-prog" style="display:none">
-  <div class="prog-wrap">
-    <p class="prog-label" id="prog-lbl">Procesando…</p>
-    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
-    <div class="steps" id="steps-c"></div>
-  </div>
-</div>
-
-<!-- EDITOR -->
-<div id="sec-editor" style="display:none">
-  <div class="ed-header">
-    <h2>Editor de Referencias</h2>
-    <p>Revisa cada referencia y usa <strong>Editar</strong> para corregir texto, <strong>Cortar</strong> para dividir una celda en dos, o <strong>Eliminar</strong> para descartar entradas.</p>
-  </div>
-
-  <div class="stats-row">
-    <div class="scard"><div class="sl">Total activas</div><div class="sv" id="st-total">0</div></div>
-    <div class="scard"><div class="sl">Duplicadas</div><div class="sv warn" id="st-dup">0</div></div>
-    <div class="scard"><div class="sl">Sin año</div><div class="sv danger" id="st-year">0</div></div>
-    <div class="scard"><div class="sl">Incompletas</div><div class="sv info" id="st-inc">0</div></div>
-    <div class="scard"><div class="sl">Numeración eliminada</div><div class="sv" style="color:var(--green)" id="st-num">0</div></div>
-  </div>
-
-  <div class="filters" id="filters">
-    <button class="f-btn on" data-f="all">Todas</button>
-    <button class="f-btn" data-f="dup">Duplicadas</button>
-    <button class="f-btn" data-f="year">Sin año</button>
-    <button class="f-btn" data-f="inc">Incompletas</button>
-    <button class="f-btn" data-f="unk">Sin clasificar</button>
-    <button class="f-btn" data-f="num">Numeración eliminada</button>
-    <span class="f-count" id="f-count"></span>
-  </div>
-
-  <div class="list-wrap">
-    <div class="list-hd">
-      <span>Referencias</span>
-      <span id="lhd-sub" style="color:var(--text3);font-weight:400;font-size:.75rem"></span>
+    <div class="config-strip">
+      <div class="cfg-item">
+        <label>Candidatos por referencia:</label>
+        <select id="nCandidatos">
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div class="cfg-item">
+        <label>Búsqueda por:</label>
+        <select id="modoMatch">
+          <option value="autor_titulo" selected>Autor + título</option>
+          <option value="titulo">Solo título</option>
+        </select>
+      </div>
+      <button class="btn-run" id="btnRun" disabled onclick="procesar()">▶ Iniciar revisión</button>
     </div>
-    <div class="list-body" id="list-body"></div>
+    <!-- Info de la planilla cargada -->
+    <div id="planillaInfo" style="display:none;margin-top:.75rem;padding:.6rem .9rem;background:var(--blue-bg);border:1px solid #c5d3e8;border-radius:6px;font-size:.78rem;color:var(--blue)"></div>
   </div>
 
-  <div class="dl-area">
-    <button class="btn-dl" id="btn-dl">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span id="btn-dl-lbl">Descargar archivo normalizado</span>
-    </button>
-    <button class="btn-reset" id="btn-reset">↩ Nuevo archivo</button>
+  <!-- STATS BAR -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-item"><div class="stat-n" id="sTotal">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><div class="stat-n g" id="sOk">0</div><div class="stat-lbl">Confirmados</div></div>
+    <div class="stat-item"><div class="stat-n r" id="sNo">0</div><div class="stat-lbl">No encontrados</div></div>
+    <div class="stat-item"><div class="stat-n a" id="sPend">0</div><div class="stat-lbl">Pendientes</div></div>
+    <div class="stat-divider"></div>
+    <button class="export-btn" id="btnExport" disabled onclick="exportar()">↓ Exportar planilla</button>
   </div>
+
+  <!-- FILTERS -->
+  <div class="filter-row" id="filterRow">
+    <input class="f-input" id="fText" placeholder="Buscar en referencias..." oninput="filtrar()"/>
+    <div class="chip on" id="cTodos"    onclick="setChip('todos')">Todos</div>
+    <div class="chip"    id="cPend"     onclick="setChip('pend')">⏳ Pendientes</div>
+    <div class="chip"    id="cOk"       onclick="setChip('ok')">✓ Confirmados</div>
+    <div class="chip"    id="cNo"       onclick="setChip('no')">✗ No encontrados</div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="review-list" id="reviewList"></div>
+
+  <!-- EMPTY -->
+  <div class="empty" id="emptyState">
+    <div class="empty-icon">📖</div>
+    <div class="empty-t">Carga los archivos para comenzar</div>
+    <div class="empty-s">Sube la planilla Excel de bibliografía y el catálogo KOHA,<br/>luego presiona <strong>Iniciar revisión</strong>.</div>
+  </div>
+
 </div>
-
-</main>
-<footer>Normalizador APA 7 · v3.1 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
-// ═══════════════════════════════════════════════════════
-// CONSTANTES
-// ═══════════════════════════════════════════════════════
-const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
-const COL_TIPO_NAMES = ["tipo","tipo de bibliografía","tipo bibliografía","tipo bibliografa","bibliografía básica/complementaria","básica/complementaria"];
-const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
-const STEP_DEFS   = [
-  { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
-  { id:'col',   label:'Detectando columna de referencias' },
-  { id:'start', label:'Detectando fila de inicio de datos' },
-  { id:'read',  label:'Leyendo y limpiando referencias' },
-];
+// ── STATE ─────────────────────────────────────────────
+let dfRefs = [], dfCat = [], items = [], chipActivo = 'todos';
+let planillaRefs  = [];   // [{ref, clave, nombre, tipo_biblio}]
+let planillaCarrera = '';
+let planillaOrigAoa = []; // encabezados originales para reconstruir export
 
-// ═══════════════════════════════════════════════════════
-// ESTADO GLOBAL
-// ═══════════════════════════════════════════════════════
-let originalBuf = null;   // ← buffer original sin modificar (para descarga)
-let wb = null, ws = null;
-let colRef = null, colObs = null, colTipo = null, headerRow = null, dataStart = null;
-let refList = [];
-let curFilter = 'all';
-let outputName = '';
-let selectedFile = null;
+// ── ENCODING / CSV ────────────────────────────────────
+const COL_MAP = {
+  titulo:            ['titulo','title','245a','245','nombre','ttl','titulo_del_libro'],
+  autor:             ['autor','author','100a','100','autores','autor_principal'],
+  ano:               ['ano','anio','year','fecha','date','publicacion','anio_publicacion'],
+  numero_ejemplares: ['numero_ejemplares','ejemplares','copies','items','cantidad','copias','num_ejemplares'],
+  referencia:        ['referencia','reference','ref','cita','bibliografia','apa','fuente']
+};
 
-function uid() { return '_' + Math.random().toString(36).slice(2,9); }
-
-// ═══════════════════════════════════════════════════════
-// NORMALIZACIÓN
-// ═══════════════════════════════════════════════════════
-
-/**
- * Elimina numeración inicial de referencias:
- *   "1. Texto…"  →  "Texto…"
- *   "12) Texto…" →  "Texto…"
- *   "[3] Texto…" →  "Texto…"
- *   "- Texto…"   →  "Texto…"
- * Devuelve { text, stripped } donde stripped=true si hubo cambio.
- */
-function stripLeadingNumber(v) {
-  const original = v;
-  const cleaned  = v.replace(/^\s*(\[\d+\]|\d+[\.\)]\s*|[-–•]\s+)/, '').trim();
-  return { text: cleaned, stripped: cleaned !== original.trim() };
+function normCol(c) {
+  return c.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+}
+function resolverRow(row) {
+  const out = {};
+  Object.keys(row).forEach(k => { out[normCol(k)] = (row[k]||'').trim(); });
+  Object.entries(COL_MAP).forEach(([canon, aliases]) => {
+    if(out[canon]!==undefined) return;
+    for(const a of aliases) if(out[a]!==undefined){ out[canon]=out[a]; break; }
+  });
+  return out;
+}
+function leerTexto(file, enc){ return new Promise((r,j)=>{ const fr=new FileReader(); fr.onload=e=>r(e.target.result); fr.onerror=j; fr.readAsText(file,enc); }); }
+async function detectEnc(file){ const t=await leerTexto(file,'UTF-8'); return (t.includes('\uFFFD')||/[\x80-\x9F]/.test(t))?'windows-1252':'UTF-8'; }
+async function parseCSV(file){
+  const enc=await detectEnc(file);
+  const txt=await leerTexto(file,enc);
+  return new Promise(res=>Papa.parse(txt,{header:true,skipEmptyLines:true,complete:r=>res({rows:r.data.map(resolverRow),enc})}));
 }
 
-/**
- * Extrae el texto de cualquier tipo de valor que ExcelJS puede retornar:
- *   - string / number / boolean   → conversión directa
- *   - Rich Text  { richText: [...] } → concatena los segmentos .text
- *   - Hyperlink  { text, hyperlink } → usa .text (el texto visible)
- *   - Fórmula    { formula, result } → usa .result
- *   - null / undefined              → ''
- */
-function getCellText(cellValue) {
-  if (cellValue == null) return '';
-  // Rich text: array de segmentos
-  if (typeof cellValue === 'object' && Array.isArray(cellValue.richText)) {
-    return cellValue.richText.map(seg => seg.text || '').join('');
+async function onFilePlanilla(e){
+  const f=e.target.files[0]; if(!f) return;
+  document.getElementById('stPlanilla').textContent='⏳ Leyendo...';
+  const ext=f.name.split('.').pop().toLowerCase();
+
+  if(ext==='csv'){
+    const {rows,enc}=await parseCSV(f);
+    dfRefs=rows;
+    planillaRefs=rows.map(r=>({ref:r.referencia||Object.values(r)[0]||'',clave:'',nombre:'',tipo_biblio:'obligatoria'}));
+    document.getElementById('stPlanilla').textContent=`✓ ${rows.length} referencias · CSV · ${enc}`;
+    document.getElementById('zonePlanilla').classList.add('ok');
+    checkReady(); return;
   }
-  // Hyperlink object: { text, hyperlink }
-  if (typeof cellValue === 'object' && typeof cellValue.text === 'string') {
-    return cellValue.text;
+
+  // XLSX / XLS
+  const buf=await f.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:false});
+
+  planillaOrigAoa=aoa.slice(0,4);
+  planillaCarrera=String(aoa[0]?.[0]||'').replace(/carrera\s*o\s*programa\s*:\s*/i,'').trim();
+
+  planillaRefs=[];
+  let clave='',nombre='',tipo_biblio='básica';
+  for(let i=4;i<aoa.length;i++){
+    const row=aoa[i]||[];
+    const ref=(row[3]||'').toString().trim();
+    if(!ref||ref==='null') continue;
+    if(row[0]&&String(row[0]).trim()) clave=String(row[0]).trim();
+    if(row[1]&&String(row[1]).trim()) nombre=String(row[1]).trim();
+    if(row[2]&&String(row[2]).trim()) tipo_biblio=String(row[2]).trim();
+    planillaRefs.push({ref,clave,nombre,tipo_biblio});
   }
-  // Fórmula con resultado: { formula, result }
-  if (typeof cellValue === 'object' && 'result' in cellValue) {
-    return getCellText(cellValue.result);
+
+  dfRefs=planillaRefs.map(r=>({referencia:r.ref}));
+  const asigs=[...new Set(planillaRefs.map(r=>r.clave))];
+  document.getElementById('stPlanilla').textContent=`✓ ${planillaRefs.length} refs · ${asigs.length} asignaturas`;
+  document.getElementById('planillaInfo').style.display='block';
+  document.getElementById('planillaInfo').innerHTML=`📋 <strong>${planillaCarrera}</strong> · ${asigs.length} asignaturas: ${asigs.join(', ')}`;
+  document.getElementById('zonePlanilla').classList.add('ok');
+  checkReady();
+}
+async function onFileCat(e){
+  const f=e.target.files[0]; if(!f) return;
+  document.getElementById('stCat').textContent='⏳ Leyendo...';
+  const {rows,enc}=await parseCSV(f);
+  dfCat=rows.map(r=>({...r,ano:parseInt(r.ano)||0,numero_ejemplares:parseInt(r.numero_ejemplares)||1}));
+  const cols=['titulo','autor','ano','numero_ejemplares'].filter(c=>dfCat[0]&&dfCat[0][c]!==undefined);
+  document.getElementById('stCat').textContent=`✓ ${dfCat.length} registros · ${enc} · ${cols.join(', ')}`;
+  document.getElementById('zoneCat').classList.add('ok');
+  checkReady();
+}
+function checkReady(){ document.getElementById('btnRun').disabled=!(dfRefs.length&&dfCat.length); }
+
+// ── NORMALIZACIÓN ─────────────────────────────────────
+const STOP=new Set(['de','del','la','el','los','las','un','una','y','en','a','para','por','al','con','su','sus','lo','se','que','the','of','and','in','an']);
+function norm(t){
+  if(!t) return '';
+  return t
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\u2018\u2019"']/g,' ') // comillas tipográficas
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/([a-z])(\d)/g,'$1 $2').replace(/(\d)([a-z])/g,'$1 $2')
+    .replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+function tokens(s){ return s.split(' ').filter(t=>t.length>1&&!STOP.has(t)); }
+
+// cobertura(refStr, catStr, autorConfirmado)
+// Con autor confirmado: max(covRef, covCat) → "Cálculo 1" en catálogo matchea "Cálculo 1. Potenciando..." en ref
+// Sin autor: sqrt(covRef * covCat) → media geométrica, penaliza asimetría extrema
+function cobertura(refStr, catStr, autorConfirmado=false){
+  const tRef=tokens(refStr), tCat=tokens(catStr);
+  if(!tRef.length||!tCat.length) return 0;
+  const sRef=new Set(tRef), sCat=new Set(tCat);
+  const inter=[...sRef].filter(t=>sCat.has(t)).length;
+  const covRef=inter/tRef.length; // ¿cuánto de la ref está en el catálogo?
+  const covCat=inter/tCat.length; // ¿cuánto del catálogo está en la ref?
+  if(autorConfirmado){
+    // Autor ya validado → usar el máximo de ambas direcciones
+    return Math.max(covRef, covCat);
+  } else {
+    // Sin autor → media geométrica (exige cobertura en ambas direcciones)
+    return Math.sqrt(covRef*covCat);
   }
-  // Fecha u otro objeto nativo de JS
-  if (cellValue instanceof Date) {
-    return cellValue.toISOString().slice(0, 10);
-  }
-  return String(cellValue);
 }
 
-function cleanText(v) {
-  if (v == null) return '';
-  // Si es un objeto de ExcelJS (rich text, hyperlink, fórmula), extraer primero
-  const str = (typeof v === 'object') ? getCellText(v) : String(v);
-  return str
-    .replace(/[\n\r]/g,' ')
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'')
-    .replace(/ {2,}/g,' ')
-    .replace(/ ([,\.;:])/g,'$1')
-    .trim();
+// ── CLASIFICADOR ─────────────────────────────────────
+function clasificar(ref){
+  const r=ref.toLowerCase();
+  if(/\(\d{4}\).*?\d+(\(\d+\))?.*\d+[–\-]\d+/.test(r)&&(r.includes('revista')||r.includes('vol')||/\d+\s*\(\d+\)/.test(r))) return 'Artículo de revista';
+  if(r.includes('tesis')||r.includes('memoria')) return 'Tesis';
+  if(r.includes('congreso')||r.includes('coloquio')||r.includes('ponencia')) return 'Congreso';
+  if(r.includes('recuperado de')||/https?:\/\//.test(r)) return 'Recurso web';
+  if(r.includes(' en ')&&(r.includes('ed.')||r.includes('editor'))) return 'Capítulo de libro';
+  return 'Libro';
 }
 
-function hasYear(t) {
-  return /\(\s*(1[5-9]\d{2}|20[0-2]\d|s\.f\.|n\.d\.)\s*\)/i.test(t) ||
-         /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(t);
-}
+// ── EXTRACCIÓN APA ────────────────────────────────────
+const RE_EDIT=/(editorial|editores?|publishers?|press|university|universidad|cepe|mcgraw|pearson|cengage|wiley|springer|elsevier|reverte|prentice|s\.a\.|ltda)/i;
+const RE_EDIC=/^(primera|segunda|tercera|cuarta|quinta|sexta|s[eé]ptima|octava|novena|d[eé]cima|\d+[aª°va]\.?\s*(ed|edic)|\d+(th|nd|rd|st)\s*ed)/i;
 
-function classifyType(text) {
-  const t = text.toLowerCase();
-  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
-  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t)) return 'Tesis';
-  if (/\b(informe|technical report|working paper)\b/i.test(t)) return 'Informe técnico';
-  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text)) return 'Norma';
-  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t)) return 'Documento legal';
-  if (/https?:\/\/doi\.org/i.test(t) || /doi:\s*10\.\d{4}/i.test(t)) return 'Artículo científico';
-  if (/,\s*\d+\s*\(\d+\)\s*,\s*\d+/.test(t)) return 'Artículo científico';
-  if (/\b(diario|periódico|newspaper)\b/i.test(t)) return 'Artículo de periódico';
-  if (/https?:\/\//i.test(t)) {
-    if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|birkh)\b/i.test(t)) return 'Libro';
-    return 'Recurso web';
-  }
-  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t)) return 'Libro';
-  if (hasYear(text) && text.length > 30) return 'Libro';
-  return 'Tipo no identificado';
-}
-
-function isIncomplete(text) {
-  if (!text || text.trim().length < 20) return true;
-  if (/^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ]+,?\s+[A-Z]\.?\s*$/.test(text.trim())) return true;
+// ¿Un segmento parece ser parte del nombre de autor?
+function esSegAutor(s){
+  const w=s.trim().split(/\s+/);
+  if(w.length>6) return false;
+  // Inicial simple: "S." o "S"
+  if(w.some(t=>/^[A-ZÁÉÍÓÚÜ]\.?$/.test(t))) return true;
+  // Iniciales compuestas sin espacio: "S.D." "J.R." "A.B.C." "S.D" 
+  if(w.some(t=>/^([A-ZÁÉÍÓÚÜ]\.){1,4}[A-ZÁÉÍÓÚÜ]?\.?$/.test(t))) return true;
+  // Empieza con conector "y / and / &"
+  if(/^(y|and|&)\s+/i.test(s.trim())) return true;
   return false;
 }
 
-function normalKey(text) {
-  return text.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,' ').trim();
+// Limpia comillas y sufijos de editorial que quedan pegados al título extraído
+// Ej: '"Análisis Numérico Elemental", Ed. Mc' → 'Análisis Numérico Elemental'
+function limpiarTitulo(tit){
+  if(!tit) return tit;
+  // Normalizar comillas tipográficas a rectas
+  tit = tit.replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g,'"')
+            .replace(/[\u2018\u2019]/g,"'");
+  // Quitar comillas iniciales
+  tit = tit.replace(/^["']+/, '');
+  // Quitar desde la primera comilla de cierre (con lo que sigue: ", Ed. / ", Vol. / etc.)
+  tit = tit.replace(/["']\s*,?.*$/, '');
+  // Quitar sufijos tipo ", Ed." / ", Editorial" / ": Ed. Mc. Graw"
+  tit = tit.replace(/[,;:]\s*(ed\.|editorial|editores?|vol\.|tomo|publishers?|press)\s*.*$/i, '');
+  return tit.trim();
 }
 
-// Normaliza los distintos nombres que puede tener el tipo de referencia
-function normalizaTipo(val) {
-  if (!val) return '';
-  const v = val.trim();
-  // Grupo PRINCIPAL (obligatoria): Básica, Base, Obligatoria
-  if (/b[áa]s[i]?c/i.test(v) || /\bbase\b/i.test(v) || /obligatori/i.test(v)) return v;
-  // Grupo SECUNDARIA (opcional/complementaria): Complementaria, Recomendada, Opcional, Sugerida, Adicional
-  if (/complement/i.test(v) || /recomend/i.test(v) || /opcional/i.test(v) ||
-      /sugerid/i.test(v)    || /adicional/i.test(v)) return v;
-  // Cualquier otro valor: devolver tal como está
-  return v;
+// Extraer título desde el texto que viene después del año
+function titDesdeTexto(after){
+  const segs=after.split(/\.\s+/);
+  let tit='';
+  for(let i=0;i<segs.length;i++){
+    const s=segs[i].trim(); if(!s) continue;
+    if(i===0){tit=s;continue;}
+    if(RE_EDIT.test(s)||RE_EDIC.test(s)) break;
+    if(/^[A-ZÁÉÍÓÚÜ][a-záéíóúü]+\s*:/.test(s)) break;
+    if(i>2) break;
+    tit+='. '+s;
+  }
+  return limpiarTitulo(tit.trim());
 }
 
-// Determina si un tipo es 'principal' (Básica/Obligatoria) o 'secundaria' (Complementaria/Recomendada)
-function esSecundaria(tipoRef) {
-  if (!tipoRef) return false;
-  return /complement/i.test(tipoRef) || /recomend/i.test(tipoRef) ||
-         /opcional/i.test(tipoRef)   || /sugerid/i.test(tipoRef)  || /adicional/i.test(tipoRef);
-}
+function extraerApa(ref){
+  const r=ref.replace(/[\n\r]/g,' ').replace(/\s{2,}/g,' ').trim();
 
-function computeObs() {
-  const active = refList.filter(r => !r.deleted);
-  const nmap = {};
-  active.forEach(r => {
-    const k = normalKey(r.text);
-    if (!nmap[k]) nmap[k] = [];
-    nmap[k].push(r.id);
-  });
-  const dupSet = new Set();
-  Object.values(nmap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupSet.add(id)); });
+  // ── Estrategia 1: año entre paréntesis (APA estándar) ──────────────────
+  const mP=r.match(/\(\s*(\d{4}[a-z]?)\s*\)/);
+  if(mP){
+    const anoStr=mP[0], ano=parseInt(mP[1]);
+    const pos=r.indexOf(anoStr);
+    const autor=r.substring(0,pos).replace(/[\.\s,]+$/,'').trim();
+    const after=r.substring(pos+anoStr.length).replace(/^[\.\s,]+/,'').trim();
+    return {autor:autor||null, ano, titulo:titDesdeTexto(after)||null};
+  }
 
-  const result = {};
-  refList.forEach(r => {
-    if (r.deleted) { result[r.id] = { tipo:'', tags:[], isDup:false }; return; }
-    const tipo = classifyType(r.text);
-    const tags = [tipo];
-    if (isIncomplete(r.text)) tags.push('Referencia incompleta');
-    if (!hasYear(r.text))     tags.push('Sin Año');
-    if (dupSet.has(r.id)) {
-      const tipoRef = r.tipoRef || '';
-      const dupLabel = tipoRef ? `Duplicada · ${tipoRef}` : 'Referencia duplicada';
-      tags.push(dupLabel);
+  // ── Estrategia 2: año SIN paréntesis ─────────────────────────────────
+  // Ej: "Spivak, M. Calculus. Tercera Edición 2012.Editorial Reverté."
+  // Ej: "Arancibia S. y Mena J. Cálculo1. Potenciando... Primera Edición, 2019, Cengage"
+  const mA=r.match(/\b(19|20)\d{2}\b/);
+  if(!mA) return {autor:null,ano:null,titulo:null};
+  const ano=parseInt(mA[0]);
+
+  // Dividir todo lo ANTES del año en segmentos
+  const beforeYear=r.substring(0,r.indexOf(mA[0])).replace(/[\s,\.]+$/,'').trim();
+  const segs=beforeYear.split(/\.\s+/);
+
+  // Encontrar dónde terminan los autores y empieza el título
+  let autorSegs=[], titSegs=[], foundTit=false;
+  for(let i=0;i<segs.length;i++){
+    const s=segs[i].trim(); if(!s) continue;
+    if(!foundTit && esSegAutor(s)){
+      autorSegs.push(s);
+    } else {
+      if(!foundTit) foundTit=true;
+      if(RE_EDIT.test(s)||RE_EDIC.test(s)) break;
+      if(titSegs.length>1) break;
+      titSegs.push(s);
     }
-    result[r.id] = { tipo, tags, isDup: dupSet.has(r.id), tipoRef: r.tipoRef||'' };
-  });
-  return result;
+  }
+  return {
+    autor: autorSegs.join('. ')||null,
+    ano,
+    titulo: limpiarTitulo(titSegs.join('. '))||null
+  };
 }
 
-// ═══════════════════════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════════════════════
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-const btnProc   = document.getElementById('btn-proc');
-
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('over');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
-
-function setFile(f) {
-  hideErr();
-  if (!f.name.match(/\.xlsx$/i)) { showErr('Solo se admiten archivos .xlsx'); return; }
-  selectedFile = f;
-  document.getElementById('fname').textContent = f.name;
-  document.getElementById('fsize').textContent = (f.size/1024).toFixed(1) + ' KB';
-  document.getElementById('file-card').style.display = 'flex';
-  btnProc.disabled = false;
-  outputName = f.name.replace(/\.xlsx$/i,'') + '_normalizado.xlsx';
+// Extrae TODOS los apellidos de una cadena de autores
+// Funciona para: "Edwards, B., Larson, R." / "Arancibia S. y Mena J." / "Lima, Elon Lages."
+function apellidosDeAutor(autorStr){
+  if(!autorStr) return [];
+  // Capturar todas las palabras capitalizadas de 3+ chars (apellidos)
+  const matches=autorStr.match(/\b([A-ZÁÉÍÓÚÜ][a-záéíóúü]{2,})\b/g)||[];
+  // Eliminar palabras que son claramente no-apellidos
+  const noApellidos=new Set(['Potenciando','Pensamiento','Critico','Traves','Primera','Segunda','Tercera','Cuarta','Quinta','Editorial','Edicion','Ediciones','Universidad','Learning','Editores']);
+  return [...new Set(matches.map(m=>norm(m)).filter(m=>m.length>2&&!noApellidos.has(m)))];
 }
 
-function showErr(msg) { document.getElementById('err-msg').textContent = msg; document.getElementById('err-box').style.display='flex'; }
-function hideErr()    { document.getElementById('err-box').style.display='none'; }
+function topCandidatos(ref, n){
+  const {autor, titulo} = extraerApa(ref);
+  const titNorm = titulo ? norm(titulo) : '';
+  const titTokens = titNorm ? tokens(titNorm) : [];
+  const modo = document.getElementById('modoMatch').value;
 
-function setProg(pct, lbl) {
-  document.getElementById('prog-fill').style.width = pct+'%';
-  document.getElementById('prog-lbl').textContent  = lbl;
-}
-function setStep(id, s) {
-  const el = document.getElementById('st-'+id); if (!el) return;
-  el.className = 'step '+s;
-  const dot = el.querySelector('.step-dot');
-  dot.style.background  = (s==='done'||s==='active') ? 'var(--accent)' : 'var(--border2)';
-  dot.style.boxShadow   = s==='active' ? '0 0 0 3px rgba(26,25,22,.12)' : 'none';
-}
-function buildSteps() {
-  document.getElementById('steps-c').innerHTML = STEP_DEFS.map(s =>
-    `<div class="step" id="st-${s.id}"><div class="step-dot"></div><span>${s.label}</span></div>`
-  ).join('');
-}
+  let pool = dfCat;
+  let aviso = '';
+  let apellidosUsados = [];
 
-// ═══════════════════════════════════════════════════════
-// CARGA — sólo lectura; originalBuf queda intacto
-// ═══════════════════════════════════════════════════════
-btnProc.addEventListener('click', loadFile);
+  if(modo === 'autor_titulo' && autor){
+    const apellidos = apellidosDeAutor(autor);
+    apellidosUsados = apellidos;
 
-async function loadFile() {
-  if (!selectedFile) return;
-  hideErr();
-  btnProc.disabled = true;
-  const secUp = document.getElementById('sec-upload');
-  secUp.style.opacity = '0.5'; secUp.style.pointerEvents = 'none';
-  document.getElementById('sec-prog').style.display = 'block';
-  buildSteps(); setProg(5,'Iniciando…');
-
-  try {
-    // ── 1. Leer archivo y guardar copia exacta ──────────────────
-    setStep('load','active');
-    const rawBuf = await selectedFile.arrayBuffer();
-    // Guardar buffer original SIN TOCAR para preservar formato en descarga
-    originalBuf = rawBuf.slice(0);
-    // Cargar copia de trabajo (sólo para lectura de valores)
-    wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(rawBuf.slice(0));
-    ws = wb.worksheets[0];
-    if (!ws) throw new Error('El archivo no contiene hojas de cálculo.');
-    setStep('load','done'); setProg(20,'Archivo cargado');
-
-    // ── 2. Detectar columna de referencias (filas 1–8) ──────────
-    setStep('col','active');
-    colRef = null; headerRow = null;
-    ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
-      if (colRef || rIdx > 8) return;
-      row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
-        if (colRef) return;
-        const v = getCellText(cell.value).trim().toLowerCase();
-        if (COL_NAMES.includes(v))      { colRef = cIdx; headerRow = rIdx; }
-        if (COL_TIPO_NAMES.includes(v)) { colTipo = cIdx; }
-      });
-    });
-    if (!colRef) throw new Error(
-      'No se encontró columna de referencias.\n' +
-      'Nombres aceptados: Referencias, Bibliografía, Cita, Referencia APA.\n' +
-      'Renombra la columna e intenta de nuevo.'
-    );
-
-    // Determinar índice de columna Observaciones (sin escribir aún)
-    colObs = null;
-    ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && getCellText(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
-    });
-    if (!colObs) colObs = ws.columnCount + 1;
-
-    setStep('col','done'); setProg(40, `Columna ${colRef} — fila de encabezado: ${headerRow}`);
-
-    // ── 3. Detectar automáticamente la fila de inicio de datos ──
-    //    Escanea desde headerRow+1 hasta headerRow+8 y busca la
-    //    primera celda en colRef con texto real (> 25 caracteres)
-    //    que no coincida con nombres de encabezado.
-    setStep('start','active');
-    dataStart = null;
-    for (let r = headerRow + 1; r <= Math.min(headerRow + 8, ws.rowCount); r++) {
-      const cell = ws.getRow(r).getCell(colRef);
-      const val  = getCellText(cell.value).trim();
-      if (val.length > 25 && !COL_NAMES.includes(val.toLowerCase())) {
-        dataStart = r;
-        break;
-      }
+    // Intentar cada apellido y unir los pools
+    let poolSet = new Set();
+    let encontrado = false;
+    for(const ap of apellidos){
+      if(ap.length < 3) continue;
+      const conAp = dfCat.filter(c => norm(c.autor||'').includes(ap));
+      if(conAp.length){ conAp.forEach(c => poolSet.add(c)); encontrado = true; }
     }
-    if (!dataStart) throw new Error(
-      'No se encontraron referencias en las filas siguientes al encabezado.\n' +
-      'Verifica que los datos estén en la columna correcta.'
-    );
-    setStep('start','done'); setProg(60, `Datos desde fila ${dataStart}`);
+    if(encontrado){
+      pool = [...poolSet];
+    } else {
+      // Sin ningún autor → buscar solo si título tiene 2+ tokens
+      aviso = `Autores [${apellidos.join(', ')}] no encontrados — buscando por título`;
+      pool = titTokens.length >= 2 ? dfCat : [];
+    }
+  }
 
-    // ── 4. Leer referencias (sin modificar el workbook) ─────────
-    setStep('read','active');
-    refList = [];
-    ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
-      if (rIdx < dataStart) return;
-      const cell = row.getCell(colRef);
-      const raw  = getCellText(cell.value).trim();
-      if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
-      const { text: strippedText, stripped } = stripLeadingNumber(raw);
-      // Leer tipo (Básica / Complementaria) si existe la columna
-      let tipoRef = '';
-      if (colTipo) {
-        const tCell = row.getCell(colTipo);
-        const tVal  = getCellText(tCell.value).trim();
-        tipoRef = normalizaTipo(tVal);
-      }
-      // Si no hay columna tipo, intentar inferir por celda adyacente
-      if (!tipoRef) {
-        for (let adj = 1; adj <= 3; adj++) {
-          const aVal = getCellText(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value).trim();
-          const nt = normalizaTipo(aVal); if (nt) { tipoRef = nt; break; }
-        }
-      }
-      refList.push({
-        id:            uid(),
-        excelRow:      rIdx,
-        parentId:      null,
-        text:          cleanText(strippedText),
-        tipoRef,
-        deleted:       false,
-        isNew:         false,
-        hadLeadingNum: stripped
-      });
+  if(!titNorm){
+    const hint = autor ? norm(autor).split(' ').filter(t=>t.length>3).slice(0,3).join(' ') : '';
+    return { cands:[], aviso:'No se pudo extraer título (formato no estándar APA)', hint };
+  }
+
+  if(!pool.length){
+    return { cands:[], aviso, hint: titTokens.slice(0,4).join(' ') };
+  }
+
+  // Si el pool fue filtrado por autor, podemos usar max(covRef,covCat)
+  // Si buscamos en todo el catálogo sin autor, usamos media geométrica (más estricto)
+  const autorConfirmado = pool.length < dfCat.length;
+  const minScore = titTokens.length <= 1 ? 0.8 : 0.2;
+
+  const cands = pool
+    .map(c => ({c, score: cobertura(titNorm, norm(c.titulo||''), autorConfirmado)}))
+    .filter(x => x.score >= minScore)
+    .sort((a,b) => b.score-a.score)
+    .slice(0, n)
+    .map(x => ({...x.c, _score: Math.round(x.score*100)}));
+
+  const hint = titTokens.slice(0,4).join(' ');
+  return { cands, aviso, hint };
+}
+
+function urlBuscalibre(q){ return `https://www.buscalibre.cl/libros/search?q=${encodeURIComponent(q)}`; }
+function urlScholar(q){ return `https://scholar.google.com/scholar?q=${encodeURIComponent('"'+q+'"')}`; }
+function urlDialnet(q){ return `https://dialnet.unirioja.es/buscar/documentos?querysDismax.DOCUMENTAL_TODO=${encodeURIComponent(q)}`; }
+
+// ── PROCESAR ─────────────────────────────────────────
+async function procesar(){
+  const nCand=parseInt(document.getElementById('nCandidatos').value);
+  items=[];
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('reviewList').innerHTML='';
+  document.getElementById('statsBar').classList.add('show');
+  document.getElementById('filterRow').classList.add('show');
+  document.getElementById('gProgress').style.width='0%';
+
+  for(let i=0;i<dfRefs.length;i++){
+    const fila=dfRefs[i];
+    const ref=(fila.referencia||Object.values(fila)[0]||'').trim();
+    if(!ref) continue;
+    const tipo=clasificar(ref);
+    const {cands, aviso, hint}=(tipo==='Libro'||tipo==='Capítulo de libro')?topCandidatos(ref,nCand):{cands:[],aviso:'',hint:''};
+    const parsed=extraerApa(ref);
+    const apellidos=apellidosDeAutor(parsed.autor||'');
+    const debug=`Extraído → autor: "${parsed.autor||'?'}" | título: "${parsed.titulo||'?'}" | apellidos buscados: [${apellidos.join(', ')||'?'}]`;
+    const pr = planillaRefs[i] || {};
+    items.push({
+      idx:i+1, ref, tipo, candidatos:cands, aviso, hint:hint||'', titulo:parsed.titulo,
+      estado:'pend', confirmado:null, _debug: debug,
+      tipo_biblio: pr.tipo_biblio || 'básica',
+      clave: pr.clave || '',
+      nombre: pr.nombre || '',
+      _presel: (cands.length && cands[0]._score >= 80) ? 0 : null
     });
-    if (refList.length === 0) throw new Error(
-      `No se encontraron referencias desde la fila ${dataStart}.`
-    );
-    setStep('read','done'); setProg(100, `${refList.length} referencias listas`);
+    document.getElementById('gProgress').style.width=Math.round((i+1)/dfRefs.length*100)+'%';
+    if(i%10===0) await new Promise(r=>setTimeout(r,0));
+  }
 
-    setTimeout(() => {
-      document.getElementById('sec-prog').style.display = 'none';
-      document.getElementById('sec-editor').style.display = 'block';
-      renderEditor();
-    }, 350);
+  renderAll();
+  updateStats();
+}
 
-  } catch(e) {
-    document.getElementById('sec-prog').style.display = 'none';
-    secUp.style.opacity = '1'; secUp.style.pointerEvents = '';
-    btnProc.disabled = false;
-    showErr(e.message || String(e));
+// ── RENDER ────────────────────────────────────────────
+function scoreClass(s){ return s>=70?'high':s>=45?'med':'low'; }
+
+function renderCard(item){
+  const div=document.createElement('div');
+  div.className='ref-card'+(item.estado==='ok'?' resolved-ok':item.estado==='no'?' resolved-no':'');
+  div.id='card_'+item.idx;
+
+  // Texto de estado
+  const stMap={pend:['st-pending','● Pendiente'],ok:['st-found','✓ Confirmado'],no:['st-notfound','✗ No encontrado']};
+  const [stCls,stLbl]=stMap[item.estado];
+
+  // Header
+  let headerHTML=`
+    <div class="card-header">
+      <div class="card-num">${item.idx}</div>
+      <div class="card-ref">${item.ref}</div>
+      <div class="card-tipo"><span class="tipo-pill">${item.tipo}</span></div>
+      <div class="card-status ${stCls}">${stLbl}</div>
+    </div>`;
+
+  // Body — candidatos o acciones especiales
+  let bodyHTML='';
+  let actionsHTML='';
+
+  if(item.tipo==='Libro'||item.tipo==='Capítulo de libro'){
+    if(item.estado==='pend'){
+      // Pre-selección automática
+      const presel = item._presel;
+      if(presel !== null && !(item.idx in selectedCand)){
+        selectedCand[item.idx] = { ci: presel, fromManual: false };
+      }
+      const selActual = selectedCand[item.idx];
+
+      // Candidatos automáticos
+      let candsHTML='';
+      if(item.candidatos.length){
+        item.candidatos.forEach((c,ci)=>{
+          const esSel = selActual && !selActual.fromManual && selActual.ci===ci;
+          const preTag = (ci===0 && presel!==null) ? ' <span style="font-size:.62rem;background:var(--navy);color:white;padding:.1rem .35rem;border-radius:3px;margin-left:.3rem">auto</span>' : '';
+          candsHTML+=`<div class="candidate${esSel?' selected':''}" id="cand_${item.idx}_${ci}" onclick="selCand(${item.idx},${ci})">
+            <div class="cand-score ${scoreClass(c._score)}">${c._score}%</div>
+            <div class="cand-info">
+              <div class="cand-titulo">${c.titulo||'—'}${preTag}</div>
+              <div class="cand-meta">${c.autor||'—'} · ${c.ano||'s/f'}</div>
+            </div>
+            <div class="cand-ejemplares">${c.numero_ejemplares}<span>ej.</span></div>
+          </div>`;
+        });
+      } else {
+        const msg=item.aviso||'Sin candidatos automáticos.';
+        candsHTML=`<div class="no-cands">⚠ ${msg}</div>`;
+      }
+
+      // Debug: qué extrajo el sistema
+      const dbg=item._debug||'';
+      const dbgHTML=dbg?`<div class="debug-line">🔍 ${dbg}</div>`:'';
+
+      // Búsqueda manual en catálogo
+      const manualId=`manual_${item.idx}`;
+      const manualResId=`manualRes_${item.idx}`;
+
+      bodyHTML=`<div class="card-body">
+        <div class="candidates-title">Candidatos del catálogo — selecciona el correcto:</div>
+        ${dbgHTML}
+        <div class="candidates" id="cands_${item.idx}">${candsHTML}</div>
+
+        <div class="manual-search-wrap">
+          <div class="manual-label">🔎 Buscar manualmente en el catálogo:</div>
+          <input class="manual-input" id="${manualId}"
+            placeholder="Escribe palabras del título o autor..."
+            value="${item.hint||''}"
+            oninput="buscarManual(${item.idx},'${manualId}','${manualResId}')"/>
+          <div class="manual-results" id="${manualResId}"></div>
+        </div>
+      </div>`;
+
+      const burl=urlBuscalibre(item.titulo||item.ref.substring(0,60));
+      const confLabel = (selActual && !selActual.fromManual && item.candidatos[selActual.ci])
+        ? `✓ Confirmar: "${(item.candidatos[selActual.ci].titulo||'').substring(0,30)}..."`
+        : '✓ Confirmar seleccionado';
+      actionsHTML=`<div class="card-actions">
+        <button class="btn-confirm" onclick="confirmarSelected(${item.idx})">${confLabel}</button>
+        <button class="btn-notfound" onclick="marcarNoEncontrado(${item.idx})">✗ No está en catálogo</button>
+        <a href="${burl}" target="_blank" class="link-search">🔍 Buscalibre</a>
+      </div>`;
+    } else {
+      // Resuelta
+      const conf=item.confirmado;
+      const banner=item.estado==='ok'
+        ? `<div class="resolved-banner show ok">✓ ${conf?.titulo||'—'} · ${conf?.autor||'—'} · ${conf?.ano||''} · ${conf?.numero_ejemplares||''} ej.</div>`
+        : `<div class="resolved-banner show no">✗ No encontrado en catálogo</div>`;
+      bodyHTML=banner;
+      const ob=item.tipo_biblio==='obligatoria';
+      actionsHTML=`<div class="card-actions">
+        <button class="btn-undo" onclick="deshacer(${item.idx})">↩ Deshacer</button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--muted)">
+          Tipo:
+          <button class="tipo-btn oblig${ob?' on':''}" onclick="setTipo(${item.idx},'obligatoria')">Obligatoria</button>
+          <button class="tipo-btn compl${!ob?' on':''}" onclick="setTipo(${item.idx},'complementaria')">Complementaria</button>
+        </div>
+      </div>`;
+    }
+  } else if(item.tipo==='Artículo de revista'){
+    const titulo=item.titulo||item.ref.substring(0,80);
+    bodyHTML=`<div class="art-links">
+      <a class="art-link" href="${urlScholar(titulo)}" target="_blank">🎓 Google Scholar</a>
+      <a class="art-link" href="${urlDialnet(titulo)}" target="_blank">📖 Dialnet</a>
+    </div>`;
+    if(item.estado==='pend'){
+      actionsHTML=`<div class="card-actions">
+        <button class="btn-confirm" onclick="marcarArticulo(${item.idx})">✓ Verificado externamente</button>
+        <button class="btn-notfound" onclick="marcarNoEncontrado(${item.idx})">✗ No disponible</button>
+      </div>`;
+    } else {
+      actionsHTML=`<div class="card-actions"><button class="btn-undo" onclick="deshacer(${item.idx})">↩ Deshacer</button></div>`;
+    }
+  } else {
+    // Tesis, congreso, web, etc.
+    if(item.estado==='pend'){
+      actionsHTML=`<div class="card-actions">
+        <button class="btn-confirm" onclick="marcarOk(${item.idx})">✓ Verificado</button>
+        <button class="btn-notfound" onclick="marcarNoEncontrado(${item.idx})">✗ No disponible</button>
+      </div>`;
+    } else {
+      actionsHTML=`<div class="card-actions"><button class="btn-undo" onclick="deshacer(${item.idx})">↩ Deshacer</button></div>`;
+    }
+  }
+
+  div.innerHTML=headerHTML+bodyHTML+actionsHTML;
+  return div;
+}
+
+function renderAll(){
+  filtrar();
+}
+
+let selectedCand={}; // idx → ci
+
+function selCand(idx, ci, fromManual=false){
+  const item=items.find(x=>x.idx===idx); if(!item) return;
+  selectedCand[idx]={ ci, fromManual };
+  // Deselect todos los candidatos automáticos
+  item.candidatos.forEach((_,i)=>{
+    const el=document.getElementById(`cand_${idx}_${i}`);
+    if(el) el.classList.remove('selected');
+  });
+  // Deselect todos los manuales
+  document.querySelectorAll(`[id^="mcand_${idx}_"]`).forEach(el=>el.classList.remove('selected'));
+  // Seleccionar el clickeado
+  const elId=fromManual?`mcand_${idx}_${ci}`:`cand_${idx}_${ci}`;
+  const el=document.getElementById(elId);
+  if(el) el.classList.add('selected');
+}
+
+// Búsqueda manual en tiempo real dentro del catálogo
+function buscarManual(idx, inputId, resId){
+  const q=document.getElementById(inputId).value.trim();
+  const resDiv=document.getElementById(resId);
+  if(!resDiv) return;
+  if(q.length<2){ resDiv.innerHTML=''; return; }
+
+  const qn=norm(q);
+  const resultados=dfCat
+    .map(c=>{
+      const tn=norm(c.titulo||''), an=norm(c.autor||'');
+      // Buscar cualquier palabra del query en título o autor
+      const hit=qn.split(' ').filter(w=>w.length>1&&(tn.includes(w)||an.includes(w))).length;
+      return {c, hit};
+    })
+    .filter(x=>x.hit>0)
+    .sort((a,b)=>b.hit-a.hit)
+    .slice(0,6);
+
+  if(!resultados.length){ resDiv.innerHTML=`<div class="no-cands" style="margin-top:.3rem">Sin resultados en catálogo para "${q}"</div>`; return; }
+
+  resDiv.innerHTML=resultados.map((r,mi)=>`
+    <div class="candidate" id="mcand_${idx}_${mi}" onclick="selCandManual(${idx},${mi},${JSON.stringify(r.c).replace(/"/g,'&quot;')})">
+      <div class="cand-score med" style="background:var(--navy)">cat</div>
+      <div class="cand-info">
+        <div class="cand-titulo">${r.c.titulo||'—'}</div>
+        <div class="cand-meta">${r.c.autor||'—'} · ${r.c.ano||'s/f'}</div>
+      </div>
+      <div class="cand-ejemplares">${r.c.numero_ejemplares}<span>ej.</span></div>
+    </div>`).join('');
+}
+
+// Mapa temporal de candidatos manuales
+const manualCandData={};
+
+function selCandManual(idx, mi, data){
+  manualCandData[`${idx}_${mi}`]=data;
+  selCand(idx, mi, true);
+}
+
+function confirmarSelected(idx){
+  const item=items.find(x=>x.idx===idx); if(!item) return;
+  const sel=selectedCand[idx];
+  if(sel===undefined){ alert('Selecciona un candidato primero.'); return; }
+  if(sel.fromManual){
+    item.confirmado=manualCandData[`${idx}_${sel.ci}`];
+  } else {
+    item.confirmado=item.candidatos[sel.ci];
+  }
+  item.estado='ok';
+  reRenderCard(item);
+  updateStats();
+}
+function marcarNoEncontrado(idx){ const item=items.find(x=>x.idx===idx); if(!item) return; item.estado='no'; item.confirmado=null; reRenderCard(item); updateStats(); }
+function marcarArticulo(idx){ const item=items.find(x=>x.idx===idx); if(!item) return; item.estado='ok'; item.confirmado={titulo:'Verificado externamente',autor:'',ano:'',numero_ejemplares:''}; reRenderCard(item); updateStats(); }
+function marcarOk(idx){ const item=items.find(x=>x.idx===idx); if(!item) return; item.estado='ok'; item.confirmado={titulo:'Verificado',autor:'',ano:'',numero_ejemplares:''}; reRenderCard(item); updateStats(); }
+function deshacer(idx){ const item=items.find(x=>x.idx===idx); if(!item) return; item.estado='pend'; item.confirmado=null; delete selectedCand[idx]; reRenderCard(item); updateStats(); }
+
+function reRenderCard(item){
+  const existing=document.getElementById('card_'+item.idx);
+  if(!existing) return;
+  const nuevo=renderCard(item);
+  existing.replaceWith(nuevo);
+  // Si tiene hint y no tiene candidatos automáticos, disparar búsqueda manual
+  if(item.estado==='pend' && !item.candidatos.length && item.hint){
+    const manualId=`manual_${item.idx}`;
+    const manualResId=`manualRes_${item.idx}`;
+    setTimeout(()=>buscarManual(item.idx, manualId, manualResId), 50);
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// EDITOR — RENDER
-// ═══════════════════════════════════════════════════════
-function renderEditor() {
-  const obs = computeObs();
-  const active  = refList.filter(r => !r.deleted);
-  const deleted = refList.length - active.length;
+// ── STATS ─────────────────────────────────────────────
+function updateStats(){
+  const total=items.length;
+  const ok=items.filter(x=>x.estado==='ok').length;
+  const no=items.filter(x=>x.estado==='no').length;
+  const pend=total-ok-no;
+  document.getElementById('sTotal').textContent=total;
+  document.getElementById('sOk').textContent=ok;
+  document.getElementById('sNo').textContent=no;
+  document.getElementById('sPend').textContent=pend;
+  document.getElementById('gProgress').style.width=total?Math.round((ok+no)/total*100)+'%':'0%';
+  document.getElementById('btnExport').disabled=(ok+no)===0;
+}
 
-  document.getElementById('st-total').textContent = active.length;
-  document.getElementById('st-dup').textContent   = active.filter(r => obs[r.id]?.isDup).length;
-  document.getElementById('st-year').textContent  = active.filter(r => obs[r.id]?.tags.includes('Sin Año')).length;
-  document.getElementById('st-inc').textContent   = active.filter(r => obs[r.id]?.tags.includes('Referencia incompleta')).length;
-  document.getElementById('st-num').textContent   = active.filter(r => r.hadLeadingNum).length;
-  document.getElementById('lhd-sub').textContent  = deleted > 0 ? `(${deleted} eliminada${deleted>1?'s':''})` : '';
-
-  const visible = refList.filter(r => {
-    if (curFilter === 'all') return true;
-    if (r.deleted) return false;
-    const o = obs[r.id];
-    if (!o) return false;
-    if (curFilter === 'dup')  return o.isDup;
-    if (curFilter === 'year') return o.tags.includes('Sin Año');
-    if (curFilter === 'inc')  return o.tags.includes('Referencia incompleta');
-    if (curFilter === 'unk')  return o.tipo === 'Tipo no identificado';
-    if (curFilter === 'num')  return r.hadLeadingNum;
+// ── FILTROS ───────────────────────────────────────────
+function setChip(c){
+  chipActivo=c;
+  ['cTodos','cPend','cOk','cNo'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  const map={todos:'cTodos',pend:'cPend',ok:'cOk',no:'cNo'};
+  document.getElementById(map[c]).classList.add('on');
+  filtrar();
+}
+function filtrar(){
+  const txt=document.getElementById('fText').value.toLowerCase();
+  const list=document.getElementById('reviewList');
+  list.innerHTML='';
+  const visible=items.filter(item=>{
+    if(txt&&!item.ref.toLowerCase().includes(txt)) return false;
+    if(chipActivo==='pend'&&item.estado!=='pend') return false;
+    if(chipActivo==='ok'&&item.estado!=='ok') return false;
+    if(chipActivo==='no'&&item.estado!=='no') return false;
     return true;
   });
-
-  document.getElementById('f-count').textContent = `${visible.length} mostrada${visible.length!==1?'s':''}`;
-  document.getElementById('list-body').innerHTML  = visible.length === 0
-    ? '<div class="empty-msg">No hay referencias que coincidan con este filtro.</div>'
-    : visible.map(r => renderItem(r, obs[r.id])).join('');
-  document.getElementById('btn-dl-lbl').textContent =
-    `Descargar archivo normalizado (${active.length} referencias)`;
-}
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function renderItem(r, o) {
-  const ob = o || { tipo:'', tags:[], isDup:false };
-  const tipoBadge  = ob.tipo ? `<span class="badge b-tipo">${esc(ob.tipo)}</span>` : '';
-  const warnBadges = ob.tags.filter(t => t !== ob.tipo).map(t => {
-    let cls;
-    if (t.startsWith('Duplicada · ')) {
-      const tr = t.replace('Duplicada · ','');
-      cls = esSecundaria(tr) ? 'b-dup-com' : 'b-dup-bas';
-    } else if (t.includes('duplicad') || t.includes('Duplicada')) cls = 'b-dup';
-    else if (t.includes('Año'))                     cls = 'b-year';
-    else                                            cls = 'b-inc';
-    return `<span class="badge ${cls}">${esc(t)}</span>`;
-  }).join('');
-  const newBadge = r.isNew ? '<span class="badge b-new">✂ nueva</span>' : '';
-  const numBadge = r.hadLeadingNum ? '<span class="badge b-num" title="Se eliminó numeración inicial (ej: 1. 2. 3.)">🔢 numeración eliminada</span>' : '';
-  const rowLabel = r.excelRow ? `fila ${r.excelRow}` : 'nueva';
-  const shortTxt = r.text.length > 130 ? r.text.slice(0,130)+'…' : r.text;
-
-  const btns = r.deleted
-    ? `<button class="btn-s" data-a="undo" data-id="${r.id}">↩ Deshacer</button>`
-    : `<button class="btn-s"     data-a="edit"  data-id="${r.id}">✎ Editar</button>
-       <button class="btn-s"     data-a="split" data-id="${r.id}">✂ Cortar</button>
-       <button class="btn-s red" data-a="del"   data-id="${r.id}">✕ Eliminar</button>`;
-
-  return `<div class="ref-item${r.deleted?' deleted':''}${r.isNew?' is-new':''}" data-id="${r.id}">
-    <div class="ref-top">
-      <div class="ref-info">
-        <div class="ref-chips">
-          <span class="ref-num">${rowLabel}</span>${tipoBadge}${warnBadges}${newBadge}${numBadge}
-        </div>
-        <div class="ref-txt">${esc(shortTxt)}</div>
-      </div>
-      <div class="ref-btns">${btns}</div>
-    </div>
-    <div class="ref-expand" id="exp-${r.id}"></div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════════
-// EDITOR — ACCIONES
-// ═══════════════════════════════════════════════════════
-document.getElementById('list-body').addEventListener('click', e => {
-  const btn = e.target.closest('[data-a]'); if (!btn) return;
-  const { a, id } = btn.dataset;
-  if      (a==='edit')  openEdit(id);
-  else if (a==='split') openSplit(id);
-  else if (a==='del')   deleteRef(id);
-  else if (a==='undo')  undoRef(id);
-  else if (a==='se')    saveEdit(id);
-  else if (a==='ce')    closeExp(id);
-  else if (a==='as')    applySplit(id);
-  else if (a==='cs')    closeExp(id);
-});
-
-function closeAllExp() {
-  document.querySelectorAll('.ref-expand').forEach(el => { el.style.display='none'; el.innerHTML=''; });
-}
-
-function openEdit(id) {
-  const r = refList.find(r=>r.id===id); if (!r) return;
-  closeAllExp();
-  const exp = document.getElementById('exp-'+id);
-  exp.innerHTML = `
-    <label class="exp-label">Texto de la referencia:</label>
-    <textarea class="exp-ta" rows="4">${esc(r.text)}</textarea>
-    <div class="exp-btns">
-      <button class="btn-s grn" data-a="se" data-id="${id}">Guardar cambios</button>
-      <button class="btn-s"     data-a="ce" data-id="${id}">Cancelar</button>
-    </div>`;
-  exp.style.display='block';
-  exp.querySelector('textarea').focus();
-}
-
-function saveEdit(id) {
-  const exp = document.getElementById('exp-'+id);
-  const txt = exp.querySelector('textarea').value.trim();
-  const r = refList.find(r=>r.id===id);
-  if (r && txt) r.text = cleanText(txt);
-  closeExp(id); renderEditor();
-}
-
-function openSplit(id) {
-  const r = refList.find(r=>r.id===id); if (!r) return;
-  closeAllExp();
-  const exp = document.getElementById('exp-'+id);
-  exp.innerHTML = `
-    <label class="exp-label">Referencia 1 — texto que permanece en la celda original:</label>
-    <textarea class="exp-ta t1" rows="4">${esc(r.text)}</textarea>
-    <div class="exp-sep">✂ punto de corte</div>
-    <label class="exp-label">Referencia 2 — nueva entrada (escribe o pega aquí):</label>
-    <textarea class="exp-ta t2" rows="4" placeholder="Pega o escribe la segunda referencia…"></textarea>
-    <div class="exp-btns">
-      <button class="btn-s grn" data-a="as" data-id="${id}">Aplicar corte</button>
-      <button class="btn-s"     data-a="cs" data-id="${id}">Cancelar</button>
-    </div>`;
-  exp.style.display='block';
-  exp.querySelector('.t1').focus();
-}
-
-function applySplit(id) {
-  const exp = document.getElementById('exp-'+id);
-  const t1 = exp.querySelector('.t1').value.trim();
-  const t2 = exp.querySelector('.t2').value.trim();
-  if (!t1 || !t2) { alert('Las dos partes deben tener contenido.'); return; }
-  const r = refList.find(r=>r.id===id); if (!r) return;
-  r.text = cleanText(t1);
-  const { text: t2clean, stripped: t2stripped } = stripLeadingNumber(t2);
-  const newR = { id: uid(), excelRow: null, parentId: id, text: cleanText(t2clean), deleted: false, isNew: true, hadLeadingNum: t2stripped };
-  refList.splice(refList.indexOf(r)+1, 0, newR);
-  closeExp(id); renderEditor();
-}
-
-function deleteRef(id) { const r=refList.find(r=>r.id===id); if(r) r.deleted=true;  closeExp(id); renderEditor(); }
-function undoRef(id)   { const r=refList.find(r=>r.id===id); if(r) r.deleted=false; renderEditor(); }
-function closeExp(id)  { const el=document.getElementById('exp-'+id); if(el){el.style.display='none';el.innerHTML='';} }
-
-document.getElementById('filters').addEventListener('click', e => {
-  const btn = e.target.closest('.f-btn'); if (!btn) return;
-  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  curFilter = btn.dataset.f;
-  renderEditor();
-});
-
-// ═══════════════════════════════════════════════════════
-// DESCARGA — reconstruye desde originalBuf (preserva todo el formato original)
-// ═══════════════════════════════════════════════════════
-document.getElementById('btn-dl').addEventListener('click', downloadFile);
-
-async function downloadFile() {
-  const btn = document.getElementById('btn-dl');
-  btn.disabled = true;
-  document.getElementById('btn-dl-lbl').textContent = 'Generando archivo…';
-
-  try {
-    const obs = computeObs();
-
-    // ── Cargar workbook FRESCO desde el buffer original ────────
-    // Esto garantiza que todo el formato original (celdas combinadas,
-    // anchos de columna, colores, estilos) quede perfectamente preservado.
-    const dlWb = new ExcelJS.Workbook();
-    await dlWb.xlsx.load(originalBuf.slice(0));
-    const dlWs = dlWb.worksheets[0];
-
-    // ── Agregar encabezado Observaciones si no existe ──────────
-    let dlColObs = null;
-    dlWs.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && getCellText(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
-    });
-    if (!dlColObs) {
-      dlColObs = dlWs.columnCount + 1;
-      const hc = dlWs.getRow(headerRow).getCell(dlColObs);
-      hc.value = 'Observaciones';
-      hc.font  = { bold: true, name: 'Arial', size: 11 };
+  visible.forEach(item=>{
+    const card=renderCard(item);
+    list.appendChild(card);
+    // Si sin candidatos y tiene hint → disparar búsqueda automática
+    if(item.estado==='pend' && !item.candidatos.length && item.hint){
+      const manualId=`manual_${item.idx}`;
+      const manualResId=`manualRes_${item.idx}`;
+      setTimeout(()=>buscarManual(item.idx, manualId, manualResId), 50);
     }
-
-    // ── Aplicar ediciones a filas originales ───────────────────
-    refList.filter(r => !r.isNew).forEach(r => {
-      const row     = dlWs.getRow(r.excelRow);
-      const refCell = row.getCell(colRef);
-      const obsCell = row.getCell(dlColObs);
-
-      if (r.deleted) {
-        refCell.value = null;
-        obsCell.value = null;
-        return;
-      }
-
-      refCell.value = r.text;
-      const o = obs[r.id];
-      if (o && o.tags.length) {
-        obsCell.value     = o.tags.join('; ');
-        obsCell.alignment = { wrapText: true };
-      }
-      if (o && o.isDup) refCell.fill = YELLOW_FILL;
-    });
-
-    // ── Insertar filas para referencias cortadas ───────────────
-    // Procesar de abajo hacia arriba para no desplazar posiciones
-    const newRefs = refList.filter(r => r.isNew && !r.deleted);
-    const byParent = {};
-    newRefs.forEach(r => {
-      if (!byParent[r.parentId]) byParent[r.parentId] = [];
-      byParent[r.parentId].push(r);
-    });
-
-    Object.entries(byParent)
-      .map(([pid, children]) => {
-        const parent = refList.find(r => r.id===pid);
-        return { excelRow: parent ? parent.excelRow : null, children };
-      })
-      .filter(g => g.excelRow != null)
-      .sort((a,b) => b.excelRow - a.excelRow)
-      .forEach(({ excelRow, children }) => {
-        children.forEach((r, i) => {
-          dlWs.insertRow(excelRow + 1 + i, []);
-          const nr = dlWs.getRow(excelRow + 1 + i);
-          nr.getCell(colRef).value = r.text;
-          const o = obs[r.id];
-          if (o && o.tags.length) {
-            nr.getCell(dlColObs).value     = o.tags.join('; ');
-            nr.getCell(dlColObs).alignment = { wrapText: true };
-          }
-          if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
-        });
-      });
-
-    // ── Escribir y descargar ───────────────────────────────────
-    const outBuf = await dlWb.xlsx.writeBuffer();
-    const blob   = new Blob([outBuf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement('a');
-    a.href = url; a.download = outputName; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-
-  } catch(e) {
-    alert('Error al generar el archivo:\n' + (e.message || e));
-  } finally {
-    btn.disabled = false;
-    const active = refList.filter(r => !r.deleted).length;
-    document.getElementById('btn-dl-lbl').textContent =
-      `Descargar archivo normalizado (${active} referencias)`;
+  });
+  if(!visible.length){
+    list.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.83rem">Sin resultados para el filtro actual.</div>';
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// RESET
-// ═══════════════════════════════════════════════════════
-document.getElementById('btn-reset').addEventListener('click', () => {
-  originalBuf = wb = ws = colRef = colObs = colTipo = headerRow = dataStart = null;
-  refList = []; curFilter = 'all';
-  selectedFile = null; outputName = '';
-  fileInput.value = '';
-  document.getElementById('file-card').style.display  = 'none';
-  document.getElementById('sec-editor').style.display = 'none';
-  const su = document.getElementById('sec-upload');
-  su.style.opacity='1'; su.style.pointerEvents='';
-  btnProc.disabled = true;
-  hideErr();
-});
+function exportar(){
+  // ── Reconstruir encabezados desde la planilla original ──
+  const hdrs = planillaOrigAoa.length >= 4 ? planillaOrigAoa : [
+    ['Carrera o Programa: ' + planillaCarrera,...Array(11).fill(null)],
+    ['Clave Asignatura','Nombre Asignatura','Tipo Bibliografía','Referencias','Disponibilidad en Bibliotecas',...Array(4).fill(null),'Observaciones','Proveedor','Valor pesos'],
+    [null,null,null,null,'LIBROS N° de ejemplares (cantidad - año)',...Array(3).fill(null),'Artículo Científico Disponible en (papel - on line)',...Array(3).fill(null)],
+    [null,null,null,null,'Btca UA','Otras Btcas','Total','Disponible on line URL',null,null,null,null],
+  ];
+  // Asegurar 12 columnas en encabezados
+  const aoa = hdrs.map(r => { const row=[...r]; while(row.length<12) row.push(null); return row.slice(0,12); });
+
+  // ── Agrupar items por asignatura preservando orden original ──
+  // Orden: agrupar por (clave+nombre) → dentro de cada asignatura: básica/obligatoria primero, complementaria después
+  const grupos = [];
+  const visto = new Map();
+  items.forEach(item => {
+    const key = item.clave + '||' + item.nombre;
+    if(!visto.has(key)){
+      visto.set(key, {clave:item.clave, nombre:item.nombre, basica:[], complementaria:[]});
+      grupos.push(visto.get(key));
+    }
+    const tb = item.tipo_biblio.toLowerCase();
+    const esCompl = tb.includes('compl');
+    visto.get(key)[esCompl ? 'complementaria' : 'basica'].push(item);
+  });
+
+  // ── Generar filas de datos ──
+  grupos.forEach(grupo => {
+    let primeraAsig = true;
+    ['basica','complementaria'].forEach(tp => {
+      const lista = grupo[tp]; if(!lista.length) return;
+      const tipoLabel = tp === 'basica' ? 'básica' : 'complementaria';
+      let primeraTipo = true;
+      lista.forEach(item => {
+        const conf = item.confirmado;
+        const esArt = item.tipo === 'Artículo de revista';
+        const enc   = item.estado === 'ok';
+        const ejems = enc && !esArt && conf?.numero_ejemplares
+          ? String(conf.numero_ejemplares) + (conf.ano ? ' - ' + conf.ano : '') : '';
+        const artD  = enc && esArt ? 'on line' : '';
+        const obs   = item.estado === 'no'   ? 'No encontrado en catálogo'
+                    : item.estado === 'pend' ? 'Pendiente'
+                    : enc && conf?.titulo     ? 'Verificado'
+                    : '';
+
+        aoa.push([
+          primeraAsig && primeraTipo ? grupo.clave   : null,  // A
+          primeraAsig && primeraTipo ? grupo.nombre  : null,  // B
+          primeraTipo                ? tipoLabel     : null,  // C
+          item.ref,                                           // D
+          enc && !esArt ? (conf?.numero_ejemplares||'') : '', // E Btca UA
+          '',                                                 // F Otras Btcas
+          enc && !esArt ? (conf?.numero_ejemplares||'') : '', // G Total
+          '',                                                 // H URL online
+          artD,                                              // I Artículo
+          obs,                                               // J Observaciones
+          item.estado === 'no' ? 'Buscalibre' : '',          // K Proveedor
+          '',                                                // L Valor pesos
+        ]);
+        primeraTipo = false;
+        primeraAsig = false;
+      });
+    });
+  });
+
+  // ── Crear hoja ──
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:11}},
+    {s:{r:1,c:0},e:{r:3,c:0}},{s:{r:1,c:1},e:{r:3,c:1}},
+    {s:{r:1,c:2},e:{r:3,c:2}},{s:{r:1,c:3},e:{r:3,c:3}},
+    {s:{r:1,c:9},e:{r:3,c:9}},{s:{r:1,c:10},e:{r:3,c:10}},{s:{r:1,c:11},e:{r:3,c:11}},
+    {s:{r:1,c:4},e:{r:1,c:8}},
+    {s:{r:2,c:4},e:{r:2,c:7}},
+    {s:{r:2,c:8},e:{r:3,c:8}},
+  ];
+  ws['!cols']=[14,24,16,72,10,10,8,30,22,28,14,12].map(w=>({wch:w}));
+
+  const wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Respaldo biblioteca');
+  const fname = planillaCarrera
+    ? `planilla_${planillaCarrera.replace(/\s+/g,'_').substring(0,30)}.xlsx`
+    : 'planilla_bibliografia_apa7.xlsx';
+  XLSX.writeFile(wbOut, fname);
+}
 </script>
 </body>
 </html>
