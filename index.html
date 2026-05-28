@@ -236,7 +236,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 </div>
 
 </main>
-<footer>Normalizador APA 7 · v3.1 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.2 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -283,40 +283,9 @@ function stripLeadingNumber(v) {
   return { text: cleaned, stripped: cleaned !== original.trim() };
 }
 
-/**
- * Extrae el texto de cualquier tipo de valor que ExcelJS puede retornar:
- *   - string / number / boolean   → conversión directa
- *   - Rich Text  { richText: [...] } → concatena los segmentos .text
- *   - Hyperlink  { text, hyperlink } → usa .text (el texto visible)
- *   - Fórmula    { formula, result } → usa .result
- *   - null / undefined              → ''
- */
-function getCellText(cellValue) {
-  if (cellValue == null) return '';
-  // Rich text: array de segmentos
-  if (typeof cellValue === 'object' && Array.isArray(cellValue.richText)) {
-    return cellValue.richText.map(seg => seg.text || '').join('');
-  }
-  // Hyperlink object: { text, hyperlink }
-  if (typeof cellValue === 'object' && typeof cellValue.text === 'string') {
-    return cellValue.text;
-  }
-  // Fórmula con resultado: { formula, result }
-  if (typeof cellValue === 'object' && 'result' in cellValue) {
-    return getCellText(cellValue.result);
-  }
-  // Fecha u otro objeto nativo de JS
-  if (cellValue instanceof Date) {
-    return cellValue.toISOString().slice(0, 10);
-  }
-  return String(cellValue);
-}
-
 function cleanText(v) {
   if (v == null) return '';
-  // Si es un objeto de ExcelJS (rich text, hyperlink, fórmula), extraer primero
-  const str = (typeof v === 'object') ? getCellText(v) : String(v);
-  return str
+  return String(v)
     .replace(/[\n\r]/g,' ')
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'')
     .replace(/ {2,}/g,' ')
@@ -487,7 +456,7 @@ async function loadFile() {
       if (colRef || rIdx > 8) return;
       row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
         if (colRef) return;
-        const v = getCellText(cell.value).trim().toLowerCase();
+        const v = cell.value != null ? String(cell.value).trim().toLowerCase() : '';
         if (COL_NAMES.includes(v))      { colRef = cIdx; headerRow = rIdx; }
         if (COL_TIPO_NAMES.includes(v)) { colTipo = cIdx; }
       });
@@ -501,7 +470,7 @@ async function loadFile() {
     // Determinar índice de columna Observaciones (sin escribir aún)
     colObs = null;
     ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && getCellText(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
+      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
     });
     if (!colObs) colObs = ws.columnCount + 1;
 
@@ -515,7 +484,7 @@ async function loadFile() {
     dataStart = null;
     for (let r = headerRow + 1; r <= Math.min(headerRow + 8, ws.rowCount); r++) {
       const cell = ws.getRow(r).getCell(colRef);
-      const val  = getCellText(cell.value).trim();
+      const val  = cell.value != null ? String(cell.value).trim() : '';
       if (val.length > 25 && !COL_NAMES.includes(val.toLowerCase())) {
         dataStart = r;
         break;
@@ -533,20 +502,20 @@ async function loadFile() {
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
       if (rIdx < dataStart) return;
       const cell = row.getCell(colRef);
-      const raw  = getCellText(cell.value).trim();
+      const raw  = cell.value != null ? String(cell.value).trim() : '';
       if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
       const { text: strippedText, stripped } = stripLeadingNumber(raw);
       // Leer tipo (Básica / Complementaria) si existe la columna
       let tipoRef = '';
       if (colTipo) {
         const tCell = row.getCell(colTipo);
-        const tVal  = getCellText(tCell.value).trim();
+        const tVal  = tCell.value != null ? String(tCell.value).trim() : '';
         tipoRef = normalizaTipo(tVal);
       }
       // Si no hay columna tipo, intentar inferir por celda adyacente
       if (!tipoRef) {
         for (let adj = 1; adj <= 3; adj++) {
-          const aVal = getCellText(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value).trim();
+          const aVal = String(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value || '').trim();
           const nt = normalizaTipo(aVal); if (nt) { tipoRef = nt; break; }
         }
       }
@@ -767,7 +736,7 @@ async function downloadFile() {
     // ── Agregar encabezado Observaciones si no existe ──────────
     let dlColObs = null;
     dlWs.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && getCellText(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
+      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
     });
     if (!dlColObs) {
       dlColObs = dlWs.columnCount + 1;
@@ -775,6 +744,15 @@ async function downloadFile() {
       hc.value = 'Observaciones';
       hc.font  = { bold: true, name: 'Arial', size: 11 };
     }
+
+    // ── PRE-PASE: limpiar relleno heredado del archivo original ──────────
+    // Usamos blanco sólido (reliable en ExcelJS) para neutralizar cualquier
+    // color que el archivo original tenga en la columna de referencias.
+    // El coloreado de duplicados se delega a formato condicional (ver abajo).
+    const CLEAR_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFFFF' } };
+    refList.filter(r => !r.isNew && !r.deleted).forEach(r => {
+      dlWs.getRow(r.excelRow).getCell(colRef).fill = CLEAR_FILL;
+    });
 
     // ── Aplicar ediciones a filas originales ───────────────────
     refList.filter(r => !r.isNew).forEach(r => {
@@ -794,7 +772,8 @@ async function downloadFile() {
         obsCell.value     = o.tags.join('; ');
         obsCell.alignment = { wrapText: true };
       }
-      if (o && o.isDup) refCell.fill = YELLOW_FILL;
+      // Sin fill directo aquí: el amarillo se aplica via formato condicional
+      // basado en la columna Observaciones (ver sección FORMATO CONDICIONAL).
     });
 
     // ── Insertar filas para referencias cortadas ───────────────
@@ -823,9 +802,41 @@ async function downloadFile() {
             nr.getCell(dlColObs).value     = o.tags.join('; ');
             nr.getCell(dlColObs).alignment = { wrapText: true };
           }
-          if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
+          // Sin fill directo: el amarillo se aplica via formato condicional.
+          nr.getCell(colRef).fill = CLEAR_FILL;  // limpiar herencia
         });
       });
+
+    // ── FORMATO CONDICIONAL: amarillo si Observaciones contiene "duplicada" ──
+    // Excel evalúa esta regla al abrir el archivo. El match se hace entre la
+    // columna de referencias (colRef) y la columna Observaciones (dlColObs):
+    // si la celda de Observaciones de la misma fila contiene la palabra
+    // "duplicada", la celda de referencias se pinta amarilla.
+    // Esto es más robusto que asignar fills directamente con ExcelJS.
+    function colLetter(n) {
+      let s = '';
+      while (n > 0) { s = String.fromCharCode(64 + (n % 26 || 26)) + s; n = Math.floor((n-1)/26); }
+      return s;
+    }
+    const refColL = colLetter(colRef);
+    const obsColL = colLetter(dlColObs);
+    // Calcular la última fila real de datos en el workbook descargado
+    const lastDlRow = dlWs.lastRow ? dlWs.lastRow.number : dataStart + refList.length;
+    try {
+      dlWs.addConditionalFormatting({
+        ref: `${refColL}${dataStart}:${refColL}${lastDlRow}`,
+        rules: [{
+          priority: 1,
+          type: 'expression',
+          formulae: [`NOT(ISERROR(SEARCH("duplicada",${obsColL}${dataStart})))`],
+          style: {
+            fill: { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } }
+          }
+        }]
+      });
+    } catch(cfErr) {
+      console.warn('Formato condicional no aplicado:', cfErr);
+    }
 
     // ── Escribir y descargar ───────────────────────────────────
     const outBuf = await dlWb.xlsx.writeBuffer();
