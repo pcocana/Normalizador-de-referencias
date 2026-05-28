@@ -236,7 +236,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 </div>
 
 </main>
-<footer>Normalizador APA 7 · v3.2 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.3 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -244,7 +244,6 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 // ═══════════════════════════════════════════════════════
 const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
 const COL_TIPO_NAMES = ["tipo","tipo de bibliografía","tipo bibliografía","tipo bibliografa","bibliografía básica/complementaria","básica/complementaria"];
-const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
 const STEP_DEFS   = [
   { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
   { id:'col',   label:'Detectando columna de referencias' },
@@ -745,15 +744,6 @@ async function downloadFile() {
       hc.font  = { bold: true, name: 'Arial', size: 11 };
     }
 
-    // ── PRE-PASE: limpiar relleno heredado del archivo original ──────────
-    // Usamos blanco sólido (reliable en ExcelJS) para neutralizar cualquier
-    // color que el archivo original tenga en la columna de referencias.
-    // El coloreado de duplicados se delega a formato condicional (ver abajo).
-    const CLEAR_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFFFF' } };
-    refList.filter(r => !r.isNew && !r.deleted).forEach(r => {
-      dlWs.getRow(r.excelRow).getCell(colRef).fill = CLEAR_FILL;
-    });
-
     // ── Aplicar ediciones a filas originales ───────────────────
     refList.filter(r => !r.isNew).forEach(r => {
       const row     = dlWs.getRow(r.excelRow);
@@ -772,8 +762,6 @@ async function downloadFile() {
         obsCell.value     = o.tags.join('; ');
         obsCell.alignment = { wrapText: true };
       }
-      // Sin fill directo aquí: el amarillo se aplica via formato condicional
-      // basado en la columna Observaciones (ver sección FORMATO CONDICIONAL).
     });
 
     // ── Insertar filas para referencias cortadas ───────────────
@@ -802,41 +790,9 @@ async function downloadFile() {
             nr.getCell(dlColObs).value     = o.tags.join('; ');
             nr.getCell(dlColObs).alignment = { wrapText: true };
           }
-          // Sin fill directo: el amarillo se aplica via formato condicional.
-          nr.getCell(colRef).fill = CLEAR_FILL;  // limpiar herencia
+
         });
       });
-
-    // ── FORMATO CONDICIONAL: amarillo si Observaciones contiene "duplicada" ──
-    // Excel evalúa esta regla al abrir el archivo. El match se hace entre la
-    // columna de referencias (colRef) y la columna Observaciones (dlColObs):
-    // si la celda de Observaciones de la misma fila contiene la palabra
-    // "duplicada", la celda de referencias se pinta amarilla.
-    // Esto es más robusto que asignar fills directamente con ExcelJS.
-    function colLetter(n) {
-      let s = '';
-      while (n > 0) { s = String.fromCharCode(64 + (n % 26 || 26)) + s; n = Math.floor((n-1)/26); }
-      return s;
-    }
-    const refColL = colLetter(colRef);
-    const obsColL = colLetter(dlColObs);
-    // Calcular la última fila real de datos en el workbook descargado
-    const lastDlRow = dlWs.lastRow ? dlWs.lastRow.number : dataStart + refList.length;
-    try {
-      dlWs.addConditionalFormatting({
-        ref: `${refColL}${dataStart}:${refColL}${lastDlRow}`,
-        rules: [{
-          priority: 1,
-          type: 'expression',
-          formulae: [`NOT(ISERROR(SEARCH("duplicada",${obsColL}${dataStart})))`],
-          style: {
-            fill: { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } }
-          }
-        }]
-      });
-    } catch(cfErr) {
-      console.warn('Formato condicional no aplicado:', cfErr);
-    }
 
     // ── Escribir y descargar ───────────────────────────────────
     const outBuf = await dlWb.xlsx.writeBuffer();
