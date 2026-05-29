@@ -236,7 +236,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 </div>
 
 </main>
-<footer>Normalizador APA 7 · v3.3 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.2 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -244,6 +244,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 // ═══════════════════════════════════════════════════════
 const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
 const COL_TIPO_NAMES = ["tipo","tipo de bibliografía","tipo bibliografía","tipo bibliografa","bibliografía básica/complementaria","básica/complementaria"];
+const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
 const STEP_DEFS   = [
   { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
   { id:'col',   label:'Detectando columna de referencias' },
@@ -297,22 +298,92 @@ function hasYear(t) {
          /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(t);
 }
 
+// ── CLASIFICADOR DE TIPO DOCUMENTAL (v2 — basado en señales ponderadas) ──────
+//
+// En lugar de una cadena de if/else con reglas rígidas, se acumulan puntos
+// por cada señal detectada. El tipo que alcanza el umbral mínimo "gana".
+// Esto tolera variaciones de formato, exportaciones de gestores y
+// diferencias entre APA, IEEE u otras normas.
+//
+// SEÑALES DE ARTÍCULO CIENTÍFICO (cada una suma puntos):
+//   • DOI (doi.org / doi: 10.xxxx)                   → +5  (señal definitiva)
+//   • Volumen + número:  12(3)  /  vol. 12 / 12, (3) → +3
+//   • Rango de páginas:  45-67 / 22–28 / pp. 45      → +2
+//   • Nombre de revista conocida / ISSN               → +3
+//   • Patrón "Journal / Revista / Review / Annals…"  → +2
+//   • Estructura Autor.(Año).Título.Nombre revista    → +2
+//   • URL académica (sin ser editorial de libro)      → +1
+//   Umbral para clasificar como artículo: ≥ 4 puntos
+//
+// El resto de reglas de alta prioridad (capítulo, tesis, etc.) se evalúan
+// ANTES del clasificador de artículo para que no interfieran.
+// ─────────────────────────────────────────────────────────────────────────────
+function scoreArticulo(text) {
+  const t = text.toLowerCase();
+  let score = 0;
+
+  // DOI — señal definitiva
+  if (/https?:\/\/doi\.org/i.test(t))       score += 5;
+  if (/\bdoi:\s*10\.\d{4}/i.test(t))        score += 5;
+
+  // Volumen(número): 12(3) / 12 (3) / vol. 12 / volume 12 / v. 12
+  if (/,\s*\d{1,3}\s*\(\d{1,3}\)/.test(t)) score += 3;   // 12(3), páginas
+  if (/\b(vol\.?|volume|volumen)\s*\d{1,3}/i.test(t)) score += 2;
+  if (/,\s*\d{1,3}\s*\(\d{1,3}\)\s*[,.]/.test(t))    score += 1; // extra si seguido de coma
+
+  // Rango de páginas: 45-67 / 22–28 / pp. 45 / p. 22
+  if (/\b\d{1,4}\s*[-–]\s*\d{1,4}\b/.test(t) && !/\b(19|20)\d{2}\s*[-–]\s*(19|20)\d{2}/.test(t)) score += 2;
+  if (/\bpp?\.\s*\d{1,4}/.test(t))            score += 2;
+
+  // Solo volumen sin número pero sí páginas (ej.: Chemical Engineering..., 77, 22–28)
+  if (/,\s*\d{1,3}\s*,\s*\d{1,4}\s*[-–]\s*\d{1,4}/.test(t)) score += 3;
+
+  // Palabras clave en el nombre de la fuente (revista / journal)
+  if (/\b(journal|revista|review|annals?|bulletin|proceedings|transactions|letters|communications?|acta|science|sciences|research|engineering|medicine|biology|physics|chemistry|psychology|education|management|economics|law review)\b/i.test(t)) score += 2;
+
+  // Editoriales de libros conocidas → RESTA puntos para no confundirse
+  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins)\b/i.test(t)) score -= 2;
+
+  // URL académica que no sea editorial de libro
+  if (/https?:\/\//i.test(t) && !/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford)\b/i.test(t)) score += 1;
+
+  return score;
+}
+
 function classifyType(text) {
   const t = text.toLowerCase();
-  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
-  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t)) return 'Tesis';
-  if (/\b(informe|technical report|working paper)\b/i.test(t)) return 'Informe técnico';
-  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text)) return 'Norma';
-  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t)) return 'Documento legal';
-  if (/https?:\/\/doi\.org/i.test(t) || /doi:\s*10\.\d{4}/i.test(t)) return 'Artículo científico';
-  if (/,\s*\d+\s*\(\d+\)\s*,\s*\d+/.test(t)) return 'Artículo científico';
-  if (/\b(diario|periódico|newspaper)\b/i.test(t)) return 'Artículo de periódico';
-  if (/https?:\/\//i.test(t)) {
-    if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|birkh)\b/i.test(t)) return 'Libro';
-    return 'Recurso web';
-  }
-  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t)) return 'Libro';
+
+  // ── Prioridad alta: tipos con señales no ambiguas ─────────────────────────
+  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text))
+    return 'Capítulo de libro';
+  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t))
+    return 'Tesis';
+  if (/\b(informe|technical report|working paper)\b/i.test(t))
+    return 'Informe técnico';
+  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text))
+    return 'Norma';
+  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t))
+    return 'Documento legal';
+  if (/\b(diario|periódico|newspaper)\b/i.test(t))
+    return 'Artículo de periódico';
+
+  // ── Clasificador de artículo científico por puntuación ───────────────────
+  const artScore = scoreArticulo(text);
+  if (artScore >= 4) return 'Artículo científico';
+
+  // ── Libro (editorial conocida o URL de editorial) ─────────────────────────
+  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t))
+    return 'Libro';
+
+  // ── Recurso web (URL sin editorial conocida) ──────────────────────────────
+  if (/https?:\/\//i.test(t)) return 'Recurso web';
+
+  // ── Artículo con score bajo pero presente (≥ 2): clasificar igual ─────────
+  if (artScore >= 2) return 'Artículo científico';
+
+  // ── Libro genérico (tiene año y extensión mínima) ─────────────────────────
   if (hasYear(text) && text.length > 30) return 'Libro';
+
   return 'Tipo no identificado';
 }
 
@@ -762,6 +833,7 @@ async function downloadFile() {
         obsCell.value     = o.tags.join('; ');
         obsCell.alignment = { wrapText: true };
       }
+      if (o && o.isDup) refCell.fill = YELLOW_FILL;
     });
 
     // ── Insertar filas para referencias cortadas ───────────────
@@ -790,7 +862,7 @@ async function downloadFile() {
             nr.getCell(dlColObs).value     = o.tags.join('; ');
             nr.getCell(dlColObs).alignment = { wrapText: true };
           }
-
+          if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
         });
       });
 
