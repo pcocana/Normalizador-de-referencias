@@ -270,6 +270,38 @@ function uid() { return '_' + Math.random().toString(36).slice(2,9); }
 // ═══════════════════════════════════════════════════════
 
 /**
+ * Extrae el texto plano de un valor de celda ExcelJS.
+ * ExcelJS puede devolver distintos tipos según el formato interno:
+ *   • string          → texto normal
+ *   • { richText: [{text:'...'}, ...] }  → texto enriquecido (negrita/cursiva APA)
+ *   • { text: '...', hyperlink: '...' }  → hipervínculo
+ *   • número / fecha  → se convierte a string
+ *   • null / undefined → ''
+ * Las referencias APA usan cursiva en títulos de revistas/libros, por eso
+ * ExcelJS las retorna como richText. Sin esta función se mostraría [object Object].
+ */
+function extractCellText(val) {
+  if (val == null) return '';
+  // Rich text: { richText: [{text:'...', font:{...}}, ...] }
+  if (typeof val === 'object' && Array.isArray(val.richText)) {
+    return val.richText.map(rt => (rt && rt.text != null ? String(rt.text) : '')).join('');
+  }
+  // Hipervínculo: { text: '...', hyperlink: '...' }
+  if (typeof val === 'object' && val.text != null) {
+    return String(val.text);
+  }
+  // Fórmula con resultado: { formula: '...', result: '...' }
+  if (typeof val === 'object' && val.result != null) {
+    return String(val.result);
+  }
+  // Fecha: devuelve objeto Date
+  if (val instanceof Date) {
+    return val.toISOString().slice(0, 10);
+  }
+  return String(val);
+}
+
+/**
  * Elimina numeración inicial de referencias:
  *   "1. Texto…"  →  "Texto…"
  *   "12) Texto…" →  "Texto…"
@@ -298,92 +330,22 @@ function hasYear(t) {
          /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(t);
 }
 
-// ── CLASIFICADOR DE TIPO DOCUMENTAL (v2 — basado en señales ponderadas) ──────
-//
-// En lugar de una cadena de if/else con reglas rígidas, se acumulan puntos
-// por cada señal detectada. El tipo que alcanza el umbral mínimo "gana".
-// Esto tolera variaciones de formato, exportaciones de gestores y
-// diferencias entre APA, IEEE u otras normas.
-//
-// SEÑALES DE ARTÍCULO CIENTÍFICO (cada una suma puntos):
-//   • DOI (doi.org / doi: 10.xxxx)                   → +5  (señal definitiva)
-//   • Volumen + número:  12(3)  /  vol. 12 / 12, (3) → +3
-//   • Rango de páginas:  45-67 / 22–28 / pp. 45      → +2
-//   • Nombre de revista conocida / ISSN               → +3
-//   • Patrón "Journal / Revista / Review / Annals…"  → +2
-//   • Estructura Autor.(Año).Título.Nombre revista    → +2
-//   • URL académica (sin ser editorial de libro)      → +1
-//   Umbral para clasificar como artículo: ≥ 4 puntos
-//
-// El resto de reglas de alta prioridad (capítulo, tesis, etc.) se evalúan
-// ANTES del clasificador de artículo para que no interfieran.
-// ─────────────────────────────────────────────────────────────────────────────
-function scoreArticulo(text) {
-  const t = text.toLowerCase();
-  let score = 0;
-
-  // DOI — señal definitiva
-  if (/https?:\/\/doi\.org/i.test(t))       score += 5;
-  if (/\bdoi:\s*10\.\d{4}/i.test(t))        score += 5;
-
-  // Volumen(número): 12(3) / 12 (3) / vol. 12 / volume 12 / v. 12
-  if (/,\s*\d{1,3}\s*\(\d{1,3}\)/.test(t)) score += 3;   // 12(3), páginas
-  if (/\b(vol\.?|volume|volumen)\s*\d{1,3}/i.test(t)) score += 2;
-  if (/,\s*\d{1,3}\s*\(\d{1,3}\)\s*[,.]/.test(t))    score += 1; // extra si seguido de coma
-
-  // Rango de páginas: 45-67 / 22–28 / pp. 45 / p. 22
-  if (/\b\d{1,4}\s*[-–]\s*\d{1,4}\b/.test(t) && !/\b(19|20)\d{2}\s*[-–]\s*(19|20)\d{2}/.test(t)) score += 2;
-  if (/\bpp?\.\s*\d{1,4}/.test(t))            score += 2;
-
-  // Solo volumen sin número pero sí páginas (ej.: Chemical Engineering..., 77, 22–28)
-  if (/,\s*\d{1,3}\s*,\s*\d{1,4}\s*[-–]\s*\d{1,4}/.test(t)) score += 3;
-
-  // Palabras clave en el nombre de la fuente (revista / journal)
-  if (/\b(journal|revista|review|annals?|bulletin|proceedings|transactions|letters|communications?|acta|science|sciences|research|engineering|medicine|biology|physics|chemistry|psychology|education|management|economics|law review)\b/i.test(t)) score += 2;
-
-  // Editoriales de libros conocidas → RESTA puntos para no confundirse
-  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins)\b/i.test(t)) score -= 2;
-
-  // URL académica que no sea editorial de libro
-  if (/https?:\/\//i.test(t) && !/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford)\b/i.test(t)) score += 1;
-
-  return score;
-}
-
 function classifyType(text) {
   const t = text.toLowerCase();
-
-  // ── Prioridad alta: tipos con señales no ambiguas ─────────────────────────
-  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text))
-    return 'Capítulo de libro';
-  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t))
-    return 'Tesis';
-  if (/\b(informe|technical report|working paper)\b/i.test(t))
-    return 'Informe técnico';
-  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text))
-    return 'Norma';
-  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t))
-    return 'Documento legal';
-  if (/\b(diario|periódico|newspaper)\b/i.test(t))
-    return 'Artículo de periódico';
-
-  // ── Clasificador de artículo científico por puntuación ───────────────────
-  const artScore = scoreArticulo(text);
-  if (artScore >= 4) return 'Artículo científico';
-
-  // ── Libro (editorial conocida o URL de editorial) ─────────────────────────
-  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t))
-    return 'Libro';
-
-  // ── Recurso web (URL sin editorial conocida) ──────────────────────────────
-  if (/https?:\/\//i.test(t)) return 'Recurso web';
-
-  // ── Artículo con score bajo pero presente (≥ 2): clasificar igual ─────────
-  if (artScore >= 2) return 'Artículo científico';
-
-  // ── Libro genérico (tiene año y extensión mínima) ─────────────────────────
+  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
+  if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t)) return 'Tesis';
+  if (/\b(informe|technical report|working paper)\b/i.test(t)) return 'Informe técnico';
+  if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text)) return 'Norma';
+  if (/\b(ley |decreto|reglamento|resolución)\b/i.test(t)) return 'Documento legal';
+  if (/https?:\/\/doi\.org/i.test(t) || /doi:\s*10\.\d{4}/i.test(t)) return 'Artículo científico';
+  if (/,\s*\d+\s*\(\d+\)\s*,\s*\d+/.test(t)) return 'Artículo científico';
+  if (/\b(diario|periódico|newspaper)\b/i.test(t)) return 'Artículo de periódico';
+  if (/https?:\/\//i.test(t)) {
+    if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|birkh)\b/i.test(t)) return 'Libro';
+    return 'Recurso web';
+  }
+  if (/\b(springer|wiley|pearson|mcgraw|elsevier|cambridge|oxford|siam|ams|impa|dover|academic press|prentice|routledge|chapman|taylor|north-holland|princeton|johns hopkins|american mathematical society|graduate texts|lecture notes|undergraduate texts|applied mathematics|universitext)\b/i.test(t)) return 'Libro';
   if (hasYear(text) && text.length > 30) return 'Libro';
-
   return 'Tipo no identificado';
 }
 
@@ -526,7 +488,7 @@ async function loadFile() {
       if (colRef || rIdx > 8) return;
       row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
         if (colRef) return;
-        const v = cell.value != null ? String(cell.value).trim().toLowerCase() : '';
+        const v = extractCellText(cell.value).trim().toLowerCase();
         if (COL_NAMES.includes(v))      { colRef = cIdx; headerRow = rIdx; }
         if (COL_TIPO_NAMES.includes(v)) { colTipo = cIdx; }
       });
@@ -540,7 +502,7 @@ async function loadFile() {
     // Determinar índice de columna Observaciones (sin escribir aún)
     colObs = null;
     ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
+      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
     });
     if (!colObs) colObs = ws.columnCount + 1;
 
@@ -554,7 +516,7 @@ async function loadFile() {
     dataStart = null;
     for (let r = headerRow + 1; r <= Math.min(headerRow + 8, ws.rowCount); r++) {
       const cell = ws.getRow(r).getCell(colRef);
-      const val  = cell.value != null ? String(cell.value).trim() : '';
+      const val  = extractCellText(cell.value).trim();
       if (val.length > 25 && !COL_NAMES.includes(val.toLowerCase())) {
         dataStart = r;
         break;
@@ -572,20 +534,20 @@ async function loadFile() {
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
       if (rIdx < dataStart) return;
       const cell = row.getCell(colRef);
-      const raw  = cell.value != null ? String(cell.value).trim() : '';
+      const raw  = extractCellText(cell.value).trim();
       if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
       const { text: strippedText, stripped } = stripLeadingNumber(raw);
       // Leer tipo (Básica / Complementaria) si existe la columna
       let tipoRef = '';
       if (colTipo) {
         const tCell = row.getCell(colTipo);
-        const tVal  = tCell.value != null ? String(tCell.value).trim() : '';
+        const tVal  = extractCellText(tCell.value).trim();
         tipoRef = normalizaTipo(tVal);
       }
       // Si no hay columna tipo, intentar inferir por celda adyacente
       if (!tipoRef) {
         for (let adj = 1; adj <= 3; adj++) {
-          const aVal = String(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value || '').trim();
+          const aVal = extractCellText(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value).trim();
           const nt = normalizaTipo(aVal); if (nt) { tipoRef = nt; break; }
         }
       }
@@ -806,7 +768,7 @@ async function downloadFile() {
     // ── Agregar encabezado Observaciones si no existe ──────────
     let dlColObs = null;
     dlWs.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && String(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
+      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
     });
     if (!dlColObs) {
       dlColObs = dlWs.columnCount + 1;
