@@ -784,8 +784,10 @@ async function downloadFile() {
       const obsCell = row.getCell(dlColObs);
 
       if (r.deleted) {
-        refCell.value = null;
-        obsCell.value = null;
+        // Borrar TODAS las celdas de la fila (no solo Referencia/Observaciones)
+        // para que quede 100% vacía y la limpieza final la elimine por completo.
+        const maxCol = Math.max(dlWs.columnCount, dlColObs);
+        for (let c = 1; c <= maxCol; c++) row.getCell(c).value = null;
         return;
       }
 
@@ -827,6 +829,77 @@ async function downloadFile() {
           if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
         });
       });
+
+    // ── Eliminar filas completamente en blanco (solo en la salida final) ──
+    // Una fila se elimina únicamente si TODAS sus celdas están vacías o
+    // contienen valores equivalentes a vacío (usa extractCellText para
+    // interpretar richText, hipervínculos, fórmulas, fechas, etc.).
+    // Si la fila tiene al menos un dato, se conserva intacta.
+    //
+    // NOTA IMPORTANTE: ExcelJS (la librería usada para leer/escribir el
+    // .xlsx) no reajusta las celdas combinadas al eliminar filas con
+    // spliceRows — ni siquiera las combinaciones ubicadas más abajo en la
+    // hoja. Por eso, antes de borrar cualquier fila, se desvinculan
+    // temporalmente todas las combinaciones existentes; luego se eliminan
+    // las filas vacías; y finalmente se reconstruyen las combinaciones en
+    // sus nuevas posiciones correctas (o se omiten si, tras el borrado,
+    // quedaron reducidas a una sola fila).
+    const isRowBlank = (row) => {
+      const maxCol = Math.max(dlWs.columnCount, dlColObs);
+      for (let c = 1; c <= maxCol; c++) {
+        const val = row.getCell(c).value;
+        if (val === null || val === undefined) continue;
+        const txt = extractCellText(val);
+        if (txt && txt.trim() !== '') return false;
+      }
+      return true;
+    };
+
+    const totalRowsBeforeClean = dlWs.rowCount;
+    const blankRows = [];
+    for (let r = 1; r <= totalRowsBeforeClean; r++) {
+      if (isRowBlank(dlWs.getRow(r))) blankRows.push(r);
+    }
+
+    if (blankRows.length) {
+      const blankSet = new Set(blankRows);
+
+      // Guardar todas las combinaciones actuales (en filas originales) y
+      // desvincularlas para que spliceRows no las corrompa.
+      const originalMerges = (dlWs.model.merges || []).map(m => {
+        const [start, end] = m.split(':');
+        const sc = dlWs.getCell(start), ec = dlWs.getCell(end);
+        return { t: sc.row, l: sc.col, b: ec.row, r: ec.col };
+      });
+      originalMerges.forEach(m => dlWs.unMergeCells(m.t, m.l, m.b, m.r));
+
+      // Calcular la nueva fila de cada fila conservada (numeración original).
+      const newRowOf = {};
+      let shift = 0;
+      for (let r = 1; r <= totalRowsBeforeClean; r++) {
+        if (blankSet.has(r)) { shift++; continue; }
+        newRowOf[r] = r - shift;
+      }
+
+      // Eliminar filas vacías de abajo hacia arriba.
+      blankRows.slice().sort((a, b) => b - a).forEach(r => dlWs.spliceRows(r, 1));
+
+      // Reconstruir cada combinación en su nueva posición, omitiendo las
+      // que quedaron con una sola fila o desaparecieron por completo.
+      originalMerges.forEach(({ t, l, b, r }) => {
+        let newTop = null, newBottom = null;
+        for (let row = t; row <= b; row++) {
+          const nr = newRowOf[row];
+          if (nr != null) {
+            if (newTop == null) newTop = nr;
+            newBottom = nr;
+          }
+        }
+        if (newTop != null && newBottom > newTop) {
+          dlWs.mergeCells(newTop, l, newBottom, r);
+        }
+      });
+    }
 
     // ── Escribir y descargar ───────────────────────────────────
     const outBuf = await dlWb.xlsx.writeBuffer();
