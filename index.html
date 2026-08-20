@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Normalizador de referencias APA 7 — limpieza, clasificación, detección de duplicados y validación. Procesamiento 100% local.">
 <title>Normalizador APA 7</title>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
@@ -10,39 +11,48 @@
 :root {
   --bg:#f8f7f4; --surface:#fff; --surface2:#f1f0ed;
   --border:#e2e0da; --border2:#ccc9c0;
-  --text:#1a1916; --text2:#5a5751; --text3:#9a9690;
+  --text:#1a1916; --text2:#5a5751; --text3:#706c64;
   --accent:#1a1916;
   --amber:#854f0b; --amber-bg:#faeeda;
   --red:#a32d2d;   --red-bg:#fcebeb;
   --blue:#185fa5;  --blue-bg:#e6f1fb;
   --green:#3b6d11; --green-bg:#eaf3de;
+  --color-warning: var(--amber);
+  --color-danger:  var(--red);
+  --color-success: var(--green);
+  --color-info:    var(--blue);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#1a1916; --surface:#252420; --surface2:#2e2d28;
+    --border:#3a3833; --border2:#4a4842;
+    --text:#f0efe9; --text2:#b8b5ae; --text3:#8a8780;
+    --accent:#f0efe9;
+    --amber:#fbbf24; --amber-bg:#3d2f0a;
+    --red:#f87171;   --red-bg:#3d1515;
+    --blue:#60a5fa;  --blue-bg:#0f2a4a;
+    --green:#86efac; --green-bg:#1a3d0a;
+  }
 }
 body { font-family: Georgia, serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
-header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
+header { background: var(--accent); color: var(--bg); padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; }
 header h1 { font-size: 1.1rem; font-weight: 700; }
 header p  { font-size: .74rem; opacity: .6; margin-top: 2px; font-family: sans-serif; }
 main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
-
-/* UPLOAD */
 .drop-zone { border: 2px dashed var(--border2); border-radius: 12px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--surface); transition: border-color .2s, background .2s; }
-.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--surface2); }
+.drop-zone:hover, .drop-zone.over, .drop-zone:focus { border-color: var(--accent); background: var(--surface2); outline: none; }
 .drop-icon { width: 50px; height: 50px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; margin-bottom: .85rem; }
 .drop-zone h2 { font-size: .98rem; margin-bottom: .3rem; }
 .drop-zone p  { font-size: .82rem; color: var(--text2); font-family: sans-serif; }
-.browse { display: inline-block; margin-top: .7rem; font-size: .82rem; font-family: sans-serif; padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border2); cursor: pointer; background: var(--surface); }
+.browse { display: inline-block; margin-top: .7rem; font-size: .82rem; font-family: sans-serif; padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border2); cursor: pointer; background: var(--surface); color: var(--text); }
 .browse:hover { background: var(--surface2); }
 #file-input { display: none; }
-
 .file-card { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px; margin-top: 10px; font-family: sans-serif; }
 .file-card .fname { font-size: .87rem; font-weight: 600; flex: 1; }
 .file-card .fsize { font-size: .76rem; color: var(--text3); }
-
-.btn-main { width: 100%; margin-top: 10px; padding: 11px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: none; background: var(--accent); color: #fff; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-main { width: 100%; margin-top: 10px; padding: 11px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: none; background: var(--accent); color: var(--bg); transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-main:hover { opacity: .85; }
 .btn-main:disabled { opacity: .35; cursor: not-allowed; }
-
-/* PROGRESS */
 .prog-wrap  { margin-top: 1.5rem; }
 .prog-label { font-size: .82rem; color: var(--text2); font-family: sans-serif; margin-bottom: 7px; }
 .prog-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
@@ -54,40 +64,41 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .step-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; transition: background .2s, box-shadow .2s; }
 .step.done .step-dot, .step.active .step-dot { background: var(--accent); }
 .step.active .step-dot { box-shadow: 0 0 0 3px rgba(26,25,22,.12); }
-
-/* ERROR */
-.err { display: flex; gap: 9px; align-items: flex-start; background: var(--red-bg); border: 1px solid #f7c1c1; border-radius: 8px; padding: 11px 13px; margin-top: 10px; font-size: .82rem; color: var(--red); font-family: sans-serif; white-space: pre-line; }
-
-/* EDITOR */
+.err { display: flex; gap: 9px; align-items: flex-start; background: var(--red-bg); border: 1px solid var(--red); border-radius: 8px; padding: 11px 13px; margin-top: 10px; font-size: .82rem; color: var(--red); font-family: sans-serif; white-space: pre-line; }
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-family: sans-serif; font-size: .85rem; display: flex; align-items: center; gap: 10px; min-width: 280px; animation: slideIn .3s ease; }
+.toast.success { border-left: 4px solid var(--green); }
+.toast.error   { border-left: 4px solid var(--red); }
+.toast.info    { border-left: 4px solid var(--blue); }
+.toast-undo { background: none; border: none; color: var(--blue); font-weight: 600; cursor: pointer; font-size: .85rem; padding: 0; margin-left: auto; }
+.toast-undo:hover { text-decoration: underline; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 #sec-editor { margin-top: 1.75rem; }
 .ed-header   { margin-bottom: 1.2rem; }
 .ed-header h2 { font-size: 1rem; margin-bottom: 3px; }
 .ed-header p  { font-size: .8rem; color: var(--text2); font-family: sans-serif; }
-
 .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 1.1rem; }
 .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .sl { font-size: .67rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); font-family: sans-serif; margin-bottom: 3px; }
 .sv { font-size: 1.45rem; font-weight: 700; }
-.sv.warn   { color: var(--amber); }
-.sv.danger { color: var(--red); }
-.sv.info   { color: var(--blue); }
-
+.sv.warn   { color: var(--color-warning); }
+.sv.danger { color: var(--color-danger); }
+.sv.info   { color: var(--color-info); }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 9px; }
-.f-btn { font-size: .77rem; font-family: sans-serif; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; transition: background .15s; }
+.f-btn { font-size: .77rem; font-family: sans-serif; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; transition: background .15s; color: var(--text); }
 .f-btn:hover { background: var(--surface2); }
-.f-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.f-btn.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.search-box { flex: 1; min-width: 200px; padding: 6px 12px; border: 1px solid var(--border2); border-radius: 20px; font-size: .77rem; font-family: sans-serif; background: var(--surface); color: var(--text); }
+.search-box:focus { outline: none; border-color: var(--accent); }
 .f-count { font-family: sans-serif; font-size: .77rem; color: var(--text3); margin-left: auto; }
-
 .list-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface); margin-bottom: 1.1rem; }
 .list-hd   { padding: 8px 14px; font-size: .77rem; font-weight: 600; font-family: sans-serif; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .list-body { max-height: 58vh; overflow-y: auto; }
-
 .ref-item { border-bottom: 1px solid var(--border); padding: 10px 14px; }
 .ref-item:last-child { border-bottom: none; }
 .ref-item:hover { background: var(--surface2); }
 .ref-item.deleted { background: var(--red-bg); opacity: .5; }
 .ref-item.is-new  { background: var(--green-bg); }
-
 .ref-top  { display: flex; align-items: flex-start; gap: 10px; }
 .ref-info { flex: 1; min-width: 0; }
 .ref-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 5px; }
@@ -96,21 +107,19 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .b-tipo   { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
 .b-dup    { background: var(--amber-bg); color: var(--amber); }
 .b-dup-bas{ background: var(--amber-bg); color: var(--amber); }
-.b-dup-com{ background: #fde8e8; color: #b91c1c; font-weight:600; }
+.b-dup-com{ background: var(--red-bg); color: var(--red); font-weight:600; }
 .b-year   { background: var(--red-bg);   color: var(--red); }
 .b-inc    { background: var(--blue-bg);  color: var(--blue); }
 .b-num    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
 .b-new    { background: var(--green-bg); color: var(--green); border: 1px solid #c0dd97; }
 .ref-txt  { font-size: .81rem; color: var(--text2); font-family: sans-serif; line-height: 1.5; }
-
 .ref-btns { display: flex; gap: 5px; flex-shrink: 0; }
-.btn-s    { font-size: .73rem; font-family: sans-serif; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; white-space: nowrap; transition: background .12s; }
+.btn-s    { font-size: .73rem; font-family: sans-serif; padding: 4px 9px; border-radius: 5px; border: 1px solid var(--border2); background: var(--surface); cursor: pointer; white-space: nowrap; transition: background .12s; color: var(--text); }
 .btn-s:hover { background: var(--surface2); }
-.btn-s.red { color: var(--red); border-color: #f7c1c1; }
+.btn-s.red { color: var(--red); border-color: var(--red); }
 .btn-s.red:hover { background: var(--red-bg); }
-.btn-s.grn { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-s.grn { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .btn-s.grn:hover { opacity: .85; }
-
 .ref-expand { margin-top: 10px; display: none; }
 .exp-label  { display: block; font-size: .73rem; font-family: sans-serif; color: var(--text3); margin-bottom: 4px; }
 .exp-ta     { width: 100%; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; font-family: sans-serif; font-size: .81rem; resize: vertical; background: var(--surface); color: var(--text); line-height: 1.5; }
@@ -118,18 +127,14 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .exp-sep    { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: .7rem; font-family: sans-serif; color: var(--text3); }
 .exp-sep::before, .exp-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .exp-btns   { display: flex; gap: 6px; margin-top: 8px; }
-
 .empty-msg { padding: 2.5rem; text-align: center; color: var(--text3); font-family: sans-serif; font-size: .84rem; }
-
 .dl-area    { display: flex; gap: 10px; }
 .btn-dl     { flex: 1; padding: 12px; border-radius: 8px; font-size: .9rem; font-weight: 600; font-family: sans-serif; cursor: pointer; border: 2px solid var(--accent); background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
 .btn-dl:hover { background: var(--surface2); }
 .btn-dl:disabled { opacity: .4; cursor: not-allowed; }
 .btn-reset  { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-family: sans-serif; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); }
 .btn-reset:hover { background: var(--surface2); color: var(--text); }
-
 footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--text3); font-family: sans-serif; border-top: 1px solid var(--border); margin-top: 2rem; }
-
 @media (max-width: 600px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   header { padding: 1rem; }
@@ -139,7 +144,6 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 </style>
 </head>
 <body>
-
 <header>
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -150,93 +154,85 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
     <p>Limpieza · Clasificación · Duplicados · Validación · Editor integrado</p>
   </div>
 </header>
-
 <main>
-
-<!-- UPLOAD -->
-<div id="sec-upload">
-  <div class="drop-zone" id="drop-zone">
-    <div class="drop-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <div id="sec-upload">
+    <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Arrastra o selecciona un archivo Excel">
+      <div class="drop-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <h2>Arrastra tu archivo Excel aquí</h2>
+      <p>Columna de referencias con nombre: Referencias, Bibliografía, Cita o similar</p>
+      <label class="browse" for="file-input">Seleccionar archivo .xlsx</label>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx">
+    <div class="file-card" id="file-card" style="display:none">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
       </svg>
+      <span class="fname" id="fname"></span>
+      <span class="fsize" id="fsize"></span>
     </div>
-    <h2>Arrastra tu archivo Excel aquí</h2>
-    <p>Columna de referencias con nombre: Referencias, Bibliografía, Cita o similar</p>
-    <label class="browse" for="file-input">Seleccionar archivo .xlsx</label>
-  </div>
-  <input type="file" id="file-input" accept=".xlsx">
-
-  <div class="file-card" id="file-card" style="display:none">
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-    </svg>
-    <span class="fname" id="fname"></span>
-    <span class="fsize" id="fsize"></span>
-  </div>
-  <div class="err" id="err-box" style="display:none">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span id="err-msg"></span>
-  </div>
-  <button class="btn-main" id="btn-proc" disabled>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Cargar y abrir editor de referencias
-  </button>
-</div>
-
-<!-- PROGRESS -->
-<div id="sec-prog" style="display:none">
-  <div class="prog-wrap">
-    <p class="prog-label" id="prog-lbl">Procesando…</p>
-    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
-    <div class="steps" id="steps-c"></div>
-  </div>
-</div>
-
-<!-- EDITOR -->
-<div id="sec-editor" style="display:none">
-  <div class="ed-header">
-    <h2>Editor de Referencias</h2>
-    <p>Revisa cada referencia y usa <strong>Editar</strong> para corregir texto, <strong>Cortar</strong> para dividir una celda en dos, o <strong>Eliminar</strong> para descartar entradas.</p>
-  </div>
-
-  <div class="stats-row">
-    <div class="scard"><div class="sl">Total activas</div><div class="sv" id="st-total">0</div></div>
-    <div class="scard"><div class="sl">Duplicadas</div><div class="sv warn" id="st-dup">0</div></div>
-    <div class="scard"><div class="sl">Sin año</div><div class="sv danger" id="st-year">0</div></div>
-    <div class="scard"><div class="sl">Incompletas</div><div class="sv info" id="st-inc">0</div></div>
-    <div class="scard"><div class="sl">Numeración eliminada</div><div class="sv" style="color:var(--green)" id="st-num">0</div></div>
-  </div>
-
-  <div class="filters" id="filters">
-    <button class="f-btn on" data-f="all">Todas</button>
-    <button class="f-btn" data-f="dup">Duplicadas</button>
-    <button class="f-btn" data-f="year">Sin año</button>
-    <button class="f-btn" data-f="inc">Incompletas</button>
-    <button class="f-btn" data-f="unk">Sin clasificar</button>
-    <button class="f-btn" data-f="num">Numeración eliminada</button>
-    <span class="f-count" id="f-count"></span>
-  </div>
-
-  <div class="list-wrap">
-    <div class="list-hd">
-      <span>Referencias</span>
-      <span id="lhd-sub" style="color:var(--text3);font-weight:400;font-size:.75rem"></span>
+    <div class="err" id="err-box" style="display:none" role="alert">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="err-msg"></span>
     </div>
-    <div class="list-body" id="list-body"></div>
-  </div>
-
-  <div class="dl-area">
-    <button class="btn-dl" id="btn-dl">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span id="btn-dl-lbl">Descargar archivo normalizado</span>
+    <button class="btn-main" id="btn-proc" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Cargar y abrir editor de referencias
     </button>
-    <button class="btn-reset" id="btn-reset">↩ Nuevo archivo</button>
   </div>
-</div>
 
+  <div id="sec-prog" style="display:none">
+    <div class="prog-wrap">
+      <p class="prog-label" id="prog-lbl">Procesando…</p>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="steps" id="steps-c"></div>
+    </div>
+  </div>
+
+  <div id="sec-editor" style="display:none">
+    <div class="ed-header">
+      <h2>Editor de Referencias</h2>
+      <p>Revisa cada referencia y usa <strong>Editar</strong> para corregir texto, <strong>Cortar</strong> para dividir una celda en dos, o <strong>Eliminar</strong> para descartar entradas. Atajos: <kbd>E</kbd> editar, <kbd>S</kbd> cortar, <kbd>Del</kbd> eliminar, <kbd>Esc</kbd> cerrar.</p>
+    </div>
+    <div class="stats-row">
+      <div class="scard"><div class="sl">Total activas</div><div class="sv" id="st-total">0</div></div>
+      <div class="scard"><div class="sl">Duplicadas</div><div class="sv warn" id="st-dup">0</div></div>
+      <div class="scard"><div class="sl">Sin año</div><div class="sv danger" id="st-year">0</div></div>
+      <div class="scard"><div class="sl">Incompletas</div><div class="sv info" id="st-inc">0</div></div>
+      <div class="scard"><div class="sl">Numeración eliminada</div><div class="sv" style="color:var(--green)" id="st-num">0</div></div>
+    </div>
+    <div class="filters" id="filters">
+      <button class="f-btn on" data-f="all">Todas</button>
+      <button class="f-btn" data-f="dup">Duplicadas</button>
+      <button class="f-btn" data-f="year">Sin año</button>
+      <button class="f-btn" data-f="inc">Incompletas</button>
+      <button class="f-btn" data-f="unk">Sin clasificar</button>
+      <button class="f-btn" data-f="num">Numeración eliminada</button>
+      <input type="text" class="search-box" id="search-box" placeholder="🔍 Buscar en referencias..." aria-label="Buscar en referencias">
+      <span class="f-count" id="f-count"></span>
+    </div>
+    <div class="list-wrap">
+      <div class="list-hd">
+        <span>Referencias</span>
+        <span id="lhd-sub" style="color:var(--text3);font-weight:400;font-size:.75rem"></span>
+      </div>
+      <div class="list-body" id="list-body"></div>
+    </div>
+    <div class="dl-area">
+      <button class="btn-dl" id="btn-dl">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span id="btn-dl-lbl">Descargar archivo normalizado</span>
+      </button>
+      <button class="btn-reset" id="btn-reset">↩ Nuevo archivo</button>
+    </div>
+  </div>
 </main>
-<footer>Normalizador APA 7 · v3.2 · Mayo 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.4 · Agosto 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -245,6 +241,7 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
 const COL_NAMES   = ["referencia","referencias","bibliografía","bibliografa","cita","referencia apa"];
 const COL_TIPO_NAMES = ["tipo","tipo de bibliografía","tipo bibliografía","tipo bibliografa","bibliografía básica/complementaria","básica/complementaria"];
 const YELLOW_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFF00' } };
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const STEP_DEFS   = [
   { id:'load',  label:'Cargando archivo (guardando copia original intacta)' },
   { id:'col',   label:'Detectando columna de referencias' },
@@ -255,60 +252,38 @@ const STEP_DEFS   = [
 // ═══════════════════════════════════════════════════════
 // ESTADO GLOBAL
 // ═══════════════════════════════════════════════════════
-let originalBuf = null;   // ← buffer original sin modificar (para descarga)
+let originalBuf = null;
 let wb = null, ws = null;
 let colRef = null, colObs = null, colTipo = null, headerRow = null, dataStart = null;
 let refList = [];
 let curFilter = 'all';
+let searchQuery = '';
 let outputName = '';
 let selectedFile = null;
+let obsCache = null;
+let obsCacheKey = '';
 
 function uid() { return '_' + Math.random().toString(36).slice(2,9); }
 
 // ═══════════════════════════════════════════════════════
-// NORMALIZACIÓN
+// UTILS
 // ═══════════════════════════════════════════════════════
-
-/**
- * Extrae el texto plano de un valor de celda ExcelJS.
- * ExcelJS puede devolver distintos tipos según el formato interno:
- *   • string          → texto normal
- *   • { richText: [{text:'...'}, ...] }  → texto enriquecido (negrita/cursiva APA)
- *   • { text: '...', hyperlink: '...' }  → hipervínculo
- *   • número / fecha  → se convierte a string
- *   • null / undefined → ''
- * Las referencias APA usan cursiva en títulos de revistas/libros, por eso
- * ExcelJS las retorna como richText. Sin esta función se mostraría [object Object].
- */
 function extractCellText(val) {
   if (val == null) return '';
-  // Rich text: { richText: [{text:'...', font:{...}}, ...] }
-  if (typeof val === 'object' && Array.isArray(val.richText)) {
-    return val.richText.map(rt => (rt && rt.text != null ? String(rt.text) : '')).join('');
+  try {
+    if (typeof val === 'object' && Array.isArray(val.richText)) {
+      return val.richText.map(rt => (rt && rt.text != null ? String(rt.text) : '')).join('');
+    }
+    if (typeof val === 'object' && val.text != null) return String(val.text);
+    if (typeof val === 'object' && val.result != null) return String(val.result);
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    return String(val);
+  } catch (e) {
+    console.warn('Error extrayendo texto de celda:', e);
+    return '';
   }
-  // Hipervínculo: { text: '...', hyperlink: '...' }
-  if (typeof val === 'object' && val.text != null) {
-    return String(val.text);
-  }
-  // Fórmula con resultado: { formula: '...', result: '...' }
-  if (typeof val === 'object' && val.result != null) {
-    return String(val.result);
-  }
-  // Fecha: devuelve objeto Date
-  if (val instanceof Date) {
-    return val.toISOString().slice(0, 10);
-  }
-  return String(val);
 }
 
-/**
- * Elimina numeración inicial de referencias:
- *   "1. Texto…"  →  "Texto…"
- *   "12) Texto…" →  "Texto…"
- *   "[3] Texto…" →  "Texto…"
- *   "- Texto…"   →  "Texto…"
- * Devuelve { text, stripped } donde stripped=true si hubo cambio.
- */
 function stripLeadingNumber(v) {
   const original = v;
   const cleaned  = v.replace(/^\s*(\[\d+\]|\d+[\.\)]\s*|[-–•]\s+)/, '').trim();
@@ -326,13 +301,14 @@ function cleanText(v) {
 }
 
 function hasYear(t) {
-  return /\(\s*(1[5-9]\d{2}|20[0-2]\d|s\.f\.|n\.d\.)\s*\)/i.test(t) ||
-         /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(t);
+  return /\(\s*(1[5-9]\d{2}|20\d{2}|s\.f\.|n\.d\.)\s*\)/i.test(t) ||
+         /\b(1[5-9]\d{2}|20\d{2})\b/.test(t);
 }
 
 function classifyType(text) {
   const t = text.toLowerCase();
-  if (/\bEn\b.{1,40}\(Ed/.test(text) || /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
+  if (/\bEn\b.{1,40}\(Ed/.test(text) && /\(pp\.\s*\d/.test(text)) return 'Capítulo de libro';
+  if (/\(pp\.\s*\d+\s*[-–]\s*\d+\)/.test(text) && /\bEn\b/i.test(text)) return 'Capítulo de libro';
   if (/\b(tesis|thesis|dissertat|doctoral)\b/i.test(t)) return 'Tesis';
   if (/\b(informe|technical report|working paper)\b/i.test(t)) return 'Informe técnico';
   if (/\b(ISO|IEEE|ANSI|NTN)\b/.test(text)) return 'Norma';
@@ -356,23 +332,22 @@ function isIncomplete(text) {
 }
 
 function normalKey(text) {
-  return text.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,' ').trim();
+  return text.toLowerCase()
+    .replace(/[.,;:()"\[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
 }
 
-// Normaliza los distintos nombres que puede tener el tipo de referencia
 function normalizaTipo(val) {
   if (!val) return '';
   const v = val.trim();
-  // Grupo PRINCIPAL (obligatoria): Básica, Base, Obligatoria
-  if (/b[áa]s[i]?c/i.test(v) || /\bbase\b/i.test(v) || /obligatori/i.test(v)) return v;
-  // Grupo SECUNDARIA (opcional/complementaria): Complementaria, Recomendada, Opcional, Sugerida, Adicional
+  if (/b[áa]s[ií]c/i.test(v) || /\bbase\b/i.test(v) || /obligatori/i.test(v)) return v;
   if (/complement/i.test(v) || /recomend/i.test(v) || /opcional/i.test(v) ||
       /sugerid/i.test(v)    || /adicional/i.test(v)) return v;
-  // Cualquier otro valor: devolver tal como está
   return v;
 }
 
-// Determina si un tipo es 'principal' (Básica/Obligatoria) o 'secundaria' (Complementaria/Recomendada)
 function esSecundaria(tipoRef) {
   if (!tipoRef) return false;
   return /complement/i.test(tipoRef) || /recomend/i.test(tipoRef) ||
@@ -380,6 +355,9 @@ function esSecundaria(tipoRef) {
 }
 
 function computeObs() {
+  const key = refList.map(r => r.id + r.deleted + r.text).join('|');
+  if (key === obsCacheKey && obsCache) return obsCache;
+  
   const active = refList.filter(r => !r.deleted);
   const nmap = {};
   active.forEach(r => {
@@ -387,9 +365,10 @@ function computeObs() {
     if (!nmap[k]) nmap[k] = [];
     nmap[k].push(r.id);
   });
+  
   const dupSet = new Set();
   Object.values(nmap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupSet.add(id)); });
-
+  
   const result = {};
   refList.forEach(r => {
     if (r.deleted) { result[r.id] = { tipo:'', tags:[], isDup:false }; return; }
@@ -404,6 +383,9 @@ function computeObs() {
     }
     result[r.id] = { tipo, tags, isDup: dupSet.has(r.id), tipoRef: r.tipoRef||'' };
   });
+  
+  obsCacheKey = key;
+  obsCache = result;
   return result;
 }
 
@@ -415,6 +397,9 @@ const fileInput = document.getElementById('file-input');
 const btnProc   = document.getElementById('btn-proc');
 
 dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+});
 dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
 dropZone.addEventListener('drop', e => {
@@ -425,18 +410,24 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fil
 
 function setFile(f) {
   hideErr();
+  if (f.size > MAX_FILE_SIZE) {
+    showErr(`Archivo demasiado grande (${(f.size/1024/1024).toFixed(1)} MB). Máximo: 20 MB`);
+    return;
+  }
   if (!f.name.match(/\.xlsx$/i)) { showErr('Solo se admiten archivos .xlsx'); return; }
   selectedFile = f;
   document.getElementById('fname').textContent = f.name;
   document.getElementById('fsize').textContent = (f.size/1024).toFixed(1) + ' KB';
   document.getElementById('file-card').style.display = 'flex';
   btnProc.disabled = false;
-  outputName = f.name.replace(/\.xlsx$/i,'') + '_normalizado.xlsx';
+  outputName = f.name.replace(/\.xlsx$/i,'').replace(/[^\w\- .]/g,'_') + '_normalizado.xlsx';
 }
 
-function showErr(msg) { document.getElementById('err-msg').textContent = msg; document.getElementById('err-box').style.display='flex'; }
-function hideErr()    { document.getElementById('err-box').style.display='none'; }
-
+function showErr(msg) {
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-box').style.display='flex';
+}
+function hideErr() { document.getElementById('err-box').style.display='none'; }
 function setProg(pct, lbl) {
   document.getElementById('prog-fill').style.width = pct+'%';
   document.getElementById('prog-lbl').textContent  = lbl;
@@ -454,8 +445,24 @@ function buildSteps() {
   ).join('');
 }
 
+function showToast(message, type = 'info', duration = 4000, undoCallback = null) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${message}</span>`;
+  if (undoCallback) {
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'toast-undo';
+    undoBtn.textContent = 'Deshacer';
+    undoBtn.onclick = () => { undoCallback(); toast.remove(); };
+    toast.appendChild(undoBtn);
+  }
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
+}
+
 // ═══════════════════════════════════════════════════════
-// CARGA — sólo lectura; originalBuf queda intacto
+// CARGA
 // ═══════════════════════════════════════════════════════
 btnProc.addEventListener('click', loadFile);
 
@@ -464,26 +471,28 @@ async function loadFile() {
   hideErr();
   btnProc.disabled = true;
   const secUp = document.getElementById('sec-upload');
-  secUp.style.opacity = '0.5'; secUp.style.pointerEvents = 'none';
+  secUp.style.opacity = '0.5';
+  secUp.style.pointerEvents = 'none';
   document.getElementById('sec-prog').style.display = 'block';
-  buildSteps(); setProg(5,'Iniciando…');
-
+  buildSteps();
+  setProg(5,'Iniciando…');
+  
   try {
-    // ── 1. Leer archivo y guardar copia exacta ──────────────────
     setStep('load','active');
     const rawBuf = await selectedFile.arrayBuffer();
-    // Guardar buffer original SIN TOCAR para preservar formato en descarga
     originalBuf = rawBuf.slice(0);
-    // Cargar copia de trabajo (sólo para lectura de valores)
+    
     wb = new ExcelJS.Workbook();
     await wb.xlsx.load(rawBuf.slice(0));
     ws = wb.worksheets[0];
     if (!ws) throw new Error('El archivo no contiene hojas de cálculo.');
-    setStep('load','done'); setProg(20,'Archivo cargado');
-
-    // ── 2. Detectar columna de referencias (filas 1–8) ──────────
+    setStep('load','done');
+    setProg(20,'Archivo cargado');
+    
     setStep('col','active');
-    colRef = null; headerRow = null;
+    colRef = null;
+    headerRow = null;
+    colTipo = null;
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
       if (colRef || rIdx > 8) return;
       row.eachCell({ includeEmpty: false }, (cell, cIdx) => {
@@ -493,25 +502,24 @@ async function loadFile() {
         if (COL_TIPO_NAMES.includes(v)) { colTipo = cIdx; }
       });
     });
+    
     if (!colRef) throw new Error(
       'No se encontró columna de referencias.\n' +
       'Nombres aceptados: Referencias, Bibliografía, Cita, Referencia APA.\n' +
       'Renombra la columna e intenta de nuevo.'
     );
-
-    // Determinar índice de columna Observaciones (sin escribir aún)
+    
     colObs = null;
     ws.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') colObs = cIdx;
+      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') {
+        colObs = cIdx;
+      }
     });
     if (!colObs) colObs = ws.columnCount + 1;
-
-    setStep('col','done'); setProg(40, `Columna ${colRef} — fila de encabezado: ${headerRow}`);
-
-    // ── 3. Detectar automáticamente la fila de inicio de datos ──
-    //    Escanea desde headerRow+1 hasta headerRow+8 y busca la
-    //    primera celda en colRef con texto real (> 25 caracteres)
-    //    que no coincida con nombres de encabezado.
+    
+    setStep('col','done');
+    setProg(40, `Columna ${colRef} — fila de encabezado: ${headerRow}`);
+    
     setStep('start','active');
     dataStart = null;
     for (let r = headerRow + 1; r <= Math.min(headerRow + 8, ws.rowCount); r++) {
@@ -522,13 +530,15 @@ async function loadFile() {
         break;
       }
     }
+    
     if (!dataStart) throw new Error(
       'No se encontraron referencias en las filas siguientes al encabezado.\n' +
       'Verifica que los datos estén en la columna correcta.'
     );
-    setStep('start','done'); setProg(60, `Datos desde fila ${dataStart}`);
-
-    // ── 4. Leer referencias (sin modificar el workbook) ─────────
+    
+    setStep('start','done');
+    setProg(60, `Datos desde fila ${dataStart}`);
+    
     setStep('read','active');
     refList = [];
     ws.eachRow({ includeEmpty: false }, (row, rIdx) => {
@@ -536,21 +546,26 @@ async function loadFile() {
       const cell = row.getCell(colRef);
       const raw  = extractCellText(cell.value).trim();
       if (!raw || raw.length < 10 || COL_NAMES.includes(raw.toLowerCase())) return;
+      
       const { text: strippedText, stripped } = stripLeadingNumber(raw);
-      // Leer tipo (Básica / Complementaria) si existe la columna
+      
       let tipoRef = '';
       if (colTipo) {
         const tCell = row.getCell(colTipo);
         const tVal  = extractCellText(tCell.value).trim();
         tipoRef = normalizaTipo(tVal);
       }
-      // Si no hay columna tipo, intentar inferir por celda adyacente
+      
       if (!tipoRef) {
         for (let adj = 1; adj <= 3; adj++) {
-          const aVal = extractCellText(row.getCell(colRef - adj < 1 ? colRef + adj : colRef - adj).value).trim();
-          const nt = normalizaTipo(aVal); if (nt) { tipoRef = nt; break; }
+          const colIdx = colRef - adj < 1 ? colRef + adj : colRef - adj;
+          if (colIdx > ws.columnCount) continue;
+          const aVal = extractCellText(row.getCell(colIdx).value).trim();
+          const nt = normalizaTipo(aVal);
+          if (nt) { tipoRef = nt; break; }
         }
       }
+      
       refList.push({
         id:            uid(),
         excelRow:      rIdx,
@@ -562,20 +577,24 @@ async function loadFile() {
         hadLeadingNum: stripped
       });
     });
+    
     if (refList.length === 0) throw new Error(
       `No se encontraron referencias desde la fila ${dataStart}.`
     );
-    setStep('read','done'); setProg(100, `${refList.length} referencias listas`);
-
+    
+    setStep('read','done');
+    setProg(100, `${refList.length} referencias listas`);
+    
     setTimeout(() => {
       document.getElementById('sec-prog').style.display = 'none';
       document.getElementById('sec-editor').style.display = 'block';
       renderEditor();
     }, 350);
-
+    
   } catch(e) {
     document.getElementById('sec-prog').style.display = 'none';
-    secUp.style.opacity = '1'; secUp.style.pointerEvents = '';
+    secUp.style.opacity = '1';
+    secUp.style.pointerEvents = '';
     btnProc.disabled = false;
     showErr(e.message || String(e));
   }
@@ -588,17 +607,18 @@ function renderEditor() {
   const obs = computeObs();
   const active  = refList.filter(r => !r.deleted);
   const deleted = refList.length - active.length;
-
+  
   document.getElementById('st-total').textContent = active.length;
   document.getElementById('st-dup').textContent   = active.filter(r => obs[r.id]?.isDup).length;
   document.getElementById('st-year').textContent  = active.filter(r => obs[r.id]?.tags.includes('Sin Año')).length;
   document.getElementById('st-inc').textContent   = active.filter(r => obs[r.id]?.tags.includes('Referencia incompleta')).length;
   document.getElementById('st-num').textContent   = active.filter(r => r.hadLeadingNum).length;
   document.getElementById('lhd-sub').textContent  = deleted > 0 ? `(${deleted} eliminada${deleted>1?'s':''})` : '';
-
+  
   const visible = refList.filter(r => {
-    if (curFilter === 'all') return true;
     if (r.deleted) return false;
+    if (searchQuery && !r.text.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (curFilter === 'all') return true;
     const o = obs[r.id];
     if (!o) return false;
     if (curFilter === 'dup')  return o.isDup;
@@ -608,11 +628,12 @@ function renderEditor() {
     if (curFilter === 'num')  return r.hadLeadingNum;
     return true;
   });
-
+  
   document.getElementById('f-count').textContent = `${visible.length} mostrada${visible.length!==1?'s':''}`;
   document.getElementById('list-body').innerHTML  = visible.length === 0
     ? '<div class="empty-msg">No hay referencias que coincidan con este filtro.</div>'
     : visible.map(r => renderItem(r, obs[r.id])).join('');
+  
   document.getElementById('btn-dl-lbl').textContent =
     `Descargar archivo normalizado (${active.length} referencias)`;
 }
@@ -634,17 +655,18 @@ function renderItem(r, o) {
     else                                            cls = 'b-inc';
     return `<span class="badge ${cls}">${esc(t)}</span>`;
   }).join('');
+  
   const newBadge = r.isNew ? '<span class="badge b-new">✂ nueva</span>' : '';
   const numBadge = r.hadLeadingNum ? '<span class="badge b-num" title="Se eliminó numeración inicial (ej: 1. 2. 3.)">🔢 numeración eliminada</span>' : '';
   const rowLabel = r.excelRow ? `fila ${r.excelRow}` : 'nueva';
   const shortTxt = r.text.length > 130 ? r.text.slice(0,130)+'…' : r.text;
-
+  
   const btns = r.deleted
     ? `<button class="btn-s" data-a="undo" data-id="${r.id}">↩ Deshacer</button>`
     : `<button class="btn-s"     data-a="edit"  data-id="${r.id}">✎ Editar</button>
        <button class="btn-s"     data-a="split" data-id="${r.id}">✂ Cortar</button>
        <button class="btn-s red" data-a="del"   data-id="${r.id}">✕ Eliminar</button>`;
-
+  
   return `<div class="ref-item${r.deleted?' deleted':''}${r.isNew?' is-new':''}" data-id="${r.id}">
     <div class="ref-top">
       <div class="ref-info">
@@ -663,7 +685,8 @@ function renderItem(r, o) {
 // EDITOR — ACCIONES
 // ═══════════════════════════════════════════════════════
 document.getElementById('list-body').addEventListener('click', e => {
-  const btn = e.target.closest('[data-a]'); if (!btn) return;
+  const btn = e.target.closest('[data-a]');
+  if (!btn) return;
   const { a, id } = btn.dataset;
   if      (a==='edit')  openEdit(id);
   else if (a==='split') openSplit(id);
@@ -676,11 +699,15 @@ document.getElementById('list-body').addEventListener('click', e => {
 });
 
 function closeAllExp() {
-  document.querySelectorAll('.ref-expand').forEach(el => { el.style.display='none'; el.innerHTML=''; });
+  document.querySelectorAll('.ref-expand').forEach(el => {
+    el.style.display='none';
+    el.innerHTML='';
+  });
 }
 
 function openEdit(id) {
-  const r = refList.find(r=>r.id===id); if (!r) return;
+  const r = refList.find(r=>r.id===id);
+  if (!r) return;
   closeAllExp();
   const exp = document.getElementById('exp-'+id);
   exp.innerHTML = `
@@ -699,11 +726,13 @@ function saveEdit(id) {
   const txt = exp.querySelector('textarea').value.trim();
   const r = refList.find(r=>r.id===id);
   if (r && txt) r.text = cleanText(txt);
-  closeExp(id); renderEditor();
+  closeExp(id);
+  renderEditor();
 }
 
 function openSplit(id) {
-  const r = refList.find(r=>r.id===id); if (!r) return;
+  const r = refList.find(r=>r.id===id);
+  if (!r) return;
   closeAllExp();
   const exp = document.getElementById('exp-'+id);
   exp.innerHTML = `
@@ -724,29 +753,83 @@ function applySplit(id) {
   const exp = document.getElementById('exp-'+id);
   const t1 = exp.querySelector('.t1').value.trim();
   const t2 = exp.querySelector('.t2').value.trim();
-  if (!t1 || !t2) { alert('Las dos partes deben tener contenido.'); return; }
-  const r = refList.find(r=>r.id===id); if (!r) return;
+  
+  if (!t1 || !t2) {
+    showToast('Las dos partes deben tener contenido.', 'error');
+    return;
+  }
+  
+  const r = refList.find(r=>r.id===id);
+  if (!r) return;
+  
   r.text = cleanText(t1);
   const { text: t2clean, stripped: t2stripped } = stripLeadingNumber(t2);
-  const newR = { id: uid(), excelRow: null, parentId: id, text: cleanText(t2clean), deleted: false, isNew: true, hadLeadingNum: t2stripped };
+  const newR = {
+    id: uid(),
+    excelRow: null,
+    parentId: id,
+    text: cleanText(t2clean),
+    tipoRef: r.tipoRef || '',  // ← HEREDA el tipo del padre
+    deleted: false,
+    isNew: true,
+    hadLeadingNum: t2stripped
+  };
   refList.splice(refList.indexOf(r)+1, 0, newR);
-  closeExp(id); renderEditor();
+  closeExp(id);
+  renderEditor();
 }
 
-function deleteRef(id) { const r=refList.find(r=>r.id===id); if(r) r.deleted=true;  closeExp(id); renderEditor(); }
-function undoRef(id)   { const r=refList.find(r=>r.id===id); if(r) r.deleted=false; renderEditor(); }
-function closeExp(id)  { const el=document.getElementById('exp-'+id); if(el){el.style.display='none';el.innerHTML='';} }
+function deleteRef(id) {
+  const r = refList.find(r=>r.id===id);
+  if (!r) return;
+  
+  const previousState = r.deleted;
+  r.deleted = true;
+  
+  showToast('Referencia eliminada', 'info', 5000, () => {
+    r.deleted = previousState;
+    renderEditor();
+  });
+  
+  closeExp(id);
+  renderEditor();
+}
+
+function undoRef(id) {
+  const r = refList.find(r=>r.id===id);
+  if (r) r.deleted = false;
+  renderEditor();
+}
+
+function closeExp(id) {
+  const el = document.getElementById('exp-'+id);
+  if (el) {
+    el.style.display='none';
+    el.innerHTML='';
+  }
+}
 
 document.getElementById('filters').addEventListener('click', e => {
-  const btn = e.target.closest('.f-btn'); if (!btn) return;
-  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('on'));
+  const btn = e.target.closest('.f-btn');
+  if (!btn) return;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   curFilter = btn.dataset.f;
   renderEditor();
 });
 
+document.getElementById('search-box').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderEditor();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'Escape') closeAllExp();
+});
+
 // ═══════════════════════════════════════════════════════
-// DESCARGA — reconstruye desde originalBuf (preserva todo el formato original)
+// DESCARGA
 // ═══════════════════════════════════════════════════════
 document.getElementById('btn-dl').addEventListener('click', downloadFile);
 
@@ -754,96 +837,93 @@ async function downloadFile() {
   const btn = document.getElementById('btn-dl');
   btn.disabled = true;
   document.getElementById('btn-dl-lbl').textContent = 'Generando archivo…';
-
+  
   try {
     const obs = computeObs();
-
-    // ── Cargar workbook FRESCO desde el buffer original ────────
-    // Esto garantiza que todo el formato original (celdas combinadas,
-    // anchos de columna, colores, estilos) quede perfectamente preservado.
+    
     const dlWb = new ExcelJS.Workbook();
     await dlWb.xlsx.load(originalBuf.slice(0));
     const dlWs = dlWb.worksheets[0];
-
-    // ── Agregar encabezado Observaciones si no existe ──────────
+    
     let dlColObs = null;
     dlWs.getRow(headerRow).eachCell({ includeEmpty: false }, (cell, cIdx) => {
-      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') dlColObs = cIdx;
+      if (cell.value && extractCellText(cell.value).trim().toLowerCase() === 'observaciones') {
+        dlColObs = cIdx;
+      }
     });
+    
     if (!dlColObs) {
       dlColObs = dlWs.columnCount + 1;
       const hc = dlWs.getRow(headerRow).getCell(dlColObs);
       hc.value = 'Observaciones';
       hc.font  = { bold: true, name: 'Arial', size: 11 };
     }
-
+    
     // ── Aplicar ediciones a filas originales ───────────────────
     refList.filter(r => !r.isNew).forEach(r => {
       const row     = dlWs.getRow(r.excelRow);
       const refCell = row.getCell(colRef);
       const obsCell = row.getCell(dlColObs);
-
+      
       if (r.deleted) {
-        // Borrar TODAS las celdas de la fila (no solo Referencia/Observaciones)
-        // para que quede 100% vacía y la limpieza final la elimine por completo.
         const maxCol = Math.max(dlWs.columnCount, dlColObs);
         for (let c = 1; c <= maxCol; c++) row.getCell(c).value = null;
         return;
       }
-
+      
       refCell.value = r.text;
+      
       const o = obs[r.id];
       if (o && o.tags.length) {
-        obsCell.value     = o.tags.join('; ');
+        const existingObs = extractCellText(obsCell.value).trim();
+        obsCell.value = existingObs ? existingObs + '; ' + o.tags.join('; ') : o.tags.join('; ');
         obsCell.alignment = { wrapText: true };
       }
+      
       if (o && o.isDup) refCell.fill = YELLOW_FILL;
     });
-
+    
     // ── Insertar filas para referencias cortadas ───────────────
-    // Procesar de abajo hacia arriba para no desplazar posiciones
     const newRefs = refList.filter(r => r.isNew && !r.deleted);
     const byParent = {};
     newRefs.forEach(r => {
       if (!byParent[r.parentId]) byParent[r.parentId] = [];
       byParent[r.parentId].push(r);
     });
-
-    Object.entries(byParent)
-      .map(([pid, children]) => {
-        const parent = refList.find(r => r.id===pid);
-        return { excelRow: parent ? parent.excelRow : null, children };
-      })
-      .filter(g => g.excelRow != null)
-      .sort((a,b) => b.excelRow - a.excelRow)
-      .forEach(({ excelRow, children }) => {
-        children.forEach((r, i) => {
-          dlWs.insertRow(excelRow + 1 + i, []);
-          const nr = dlWs.getRow(excelRow + 1 + i);
-          nr.getCell(colRef).value = r.text;
-          const o = obs[r.id];
-          if (o && o.tags.length) {
-            nr.getCell(dlColObs).value     = o.tags.join('; ');
-            nr.getCell(dlColObs).alignment = { wrapText: true };
-          }
-          if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
-        });
+    
+    const insertions = [];
+    Object.entries(byParent).forEach(([pid, children]) => {
+      const parent = refList.find(r => r.id === pid);
+      if (parent && parent.excelRow) {
+        insertions.push({ excelRow: parent.excelRow, children });
+      }
+    });
+    
+    insertions.sort((a, b) => b.excelRow - a.excelRow);
+    
+    insertions.forEach(({ excelRow, children }) => {
+      children.forEach((r, i) => {
+        const newRowIdx = excelRow + 1 + i;
+        dlWs.insertRow(newRowIdx, []);
+        const nr = dlWs.getRow(newRowIdx);
+        nr.getCell(colRef).value = r.text;
+        
+        // ← NUEVO: escribir el tipo heredado en la columna "Tipo"
+        if (colTipo && r.tipoRef) {
+          nr.getCell(colTipo).value = r.tipoRef;
+        }
+        
+        const o = obs[r.id];
+        if (o && o.tags.length) {
+          nr.getCell(dlColObs).value = o.tags.join('; ');
+          nr.getCell(dlColObs).alignment = { wrapText: true };
+        }
+        
+        if (o && o.isDup) nr.getCell(colRef).fill = YELLOW_FILL;
       });
-
-    // ── Eliminar filas completamente en blanco (solo en la salida final) ──
-    // Una fila se elimina únicamente si TODAS sus celdas están vacías o
-    // contienen valores equivalentes a vacío (usa extractCellText para
-    // interpretar richText, hipervínculos, fórmulas, fechas, etc.).
-    // Si la fila tiene al menos un dato, se conserva intacta.
-    //
-    // NOTA IMPORTANTE: ExcelJS (la librería usada para leer/escribir el
-    // .xlsx) no reajusta las celdas combinadas al eliminar filas con
-    // spliceRows — ni siquiera las combinaciones ubicadas más abajo en la
-    // hoja. Por eso, antes de borrar cualquier fila, se desvinculan
-    // temporalmente todas las combinaciones existentes; luego se eliminan
-    // las filas vacías; y finalmente se reconstruyen las combinaciones en
-    // sus nuevas posiciones correctas (o se omiten si, tras el borrado,
-    // quedaron reducidas a una sola fila).
+    });
+    
+    // ── Eliminar filas completamente en blanco ────────────────
     const isRowBlank = (row) => {
       const maxCol = Math.max(dlWs.columnCount, dlColObs);
       for (let c = 1; c <= maxCol; c++) {
@@ -854,38 +934,33 @@ async function downloadFile() {
       }
       return true;
     };
-
+    
     const totalRowsBeforeClean = dlWs.rowCount;
     const blankRows = [];
     for (let r = 1; r <= totalRowsBeforeClean; r++) {
       if (isRowBlank(dlWs.getRow(r))) blankRows.push(r);
     }
-
+    
     if (blankRows.length) {
       const blankSet = new Set(blankRows);
-
-      // Guardar todas las combinaciones actuales (en filas originales) y
-      // desvincularlas para que spliceRows no las corrompa.
+      
       const originalMerges = (dlWs.model.merges || []).map(m => {
         const [start, end] = m.split(':');
         const sc = dlWs.getCell(start), ec = dlWs.getCell(end);
         return { t: sc.row, l: sc.col, b: ec.row, r: ec.col };
       });
+      
       originalMerges.forEach(m => dlWs.unMergeCells(m.t, m.l, m.b, m.r));
-
-      // Calcular la nueva fila de cada fila conservada (numeración original).
+      
       const newRowOf = {};
       let shift = 0;
       for (let r = 1; r <= totalRowsBeforeClean; r++) {
         if (blankSet.has(r)) { shift++; continue; }
         newRowOf[r] = r - shift;
       }
-
-      // Eliminar filas vacías de abajo hacia arriba.
+      
       blankRows.slice().sort((a, b) => b - a).forEach(r => dlWs.spliceRows(r, 1));
-
-      // Reconstruir cada combinación en su nueva posición, omitiendo las
-      // que quedaron con una sola fila o desaparecieron por completo.
+      
       originalMerges.forEach(({ t, l, b, r }) => {
         let newTop = null, newBottom = null;
         for (let row = t; row <= b; row++) {
@@ -900,17 +975,108 @@ async function downloadFile() {
         }
       });
     }
-
+    
+    // ══════════════════════════════════════════════════════════
+    // ← NUEVO: Combinar y centrar celdas de la columna "Tipo"
+    //    cuando tengan el mismo valor en filas consecutivas.
+    // ══════════════════════════════════════════════════════════
+    if (colTipo) {
+      // 1. Descombinar CUALQUIER combinación previa que toque colTipo
+      //    (las originales del archivo pueden haber quedado desalineadas
+      //    tras insertar/eliminar filas).
+      const currentMerges = (dlWs.model.merges || []).slice();
+      currentMerges.forEach(m => {
+        const [start, end] = m.split(':');
+        const sc = dlWs.getCell(start), ec = dlWs.getCell(end);
+        // Si el rango incluye colTipo, descombinar
+        if (sc.col <= colTipo && colTipo <= ec.col) {
+          dlWs.unMergeCells(sc.row, sc.col, ec.row, ec.col);
+        }
+      });
+      
+      // 2. Recorrer las filas de datos y agrupar consecutivas con mismo valor
+      const lastRow = dlWs.rowCount;
+      let groupStart = null;
+      let groupValue = null;
+      
+      const flushGroup = (endRow) => {
+        if (groupStart == null) return;
+        if (endRow > groupStart) {
+          // Combinar verticalmente las celdas del grupo
+          dlWs.mergeCells(groupStart, colTipo, endRow, colTipo);
+          // Aplicar formato: centrado horizontal y vertical
+          const masterCell = dlWs.getCell(groupStart, colTipo);
+          masterCell.alignment = {
+            vertical: 'middle',
+            horizontal: 'center',
+            wrapText: true
+          };
+          masterCell.font = {
+            name: 'Arial',
+            size: 11,
+            bold: true,
+            color: { argb: 'FF1A1916' }
+          };
+        } else {
+          // Una sola fila: solo centrar, no combinar
+          const singleCell = dlWs.getCell(groupStart, colTipo);
+          singleCell.alignment = {
+            vertical: 'middle',
+            horizontal: 'center',
+            wrapText: true
+          };
+          singleCell.font = {
+            name: 'Arial',
+            size: 11,
+            bold: true,
+            color: { argb: 'FF1A1916' }
+          };
+        }
+      };
+      
+      for (let r = dataStart; r <= lastRow; r++) {
+        const row = dlWs.getRow(r);
+        // Saltar filas completamente vacías (no deberían existir ya, pero por seguridad)
+        const refVal = extractCellText(row.getCell(colRef).value).trim();
+        if (!refVal) continue;
+        
+        const tipoVal = extractCellText(row.getCell(colTipo).value).trim();
+        
+        if (groupValue === null) {
+          // Primer grupo
+          groupStart = r;
+          groupValue = tipoVal;
+        } else if (tipoVal === groupValue && groupValue !== '') {
+          // Mismo valor: continuar el grupo
+          // (se procesará en el flush final o al cambiar)
+        } else {
+          // Valor distinto: cerrar grupo anterior y empezar uno nuevo
+          flushGroup(r - 1);
+          groupStart = r;
+          groupValue = tipoVal;
+        }
+      }
+      // Cerrar el último grupo
+      if (groupStart != null) {
+        flushGroup(lastRow);
+      }
+    }
+    
     // ── Escribir y descargar ───────────────────────────────────
     const outBuf = await dlWb.xlsx.writeBuffer();
     const blob   = new Blob([outBuf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url    = URL.createObjectURL(blob);
     const a      = document.createElement('a');
-    a.href = url; a.download = outputName; a.click();
+    a.href = url;
+    a.download = outputName;
+    a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
-
+    
+    showToast('Archivo descargado correctamente', 'success');
+    
   } catch(e) {
-    alert('Error al generar el archivo:\n' + (e.message || e));
+    showToast('Error al generar el archivo: ' + (e.message || e), 'error', 6000);
+    console.error('Error en descarga:', e);
   } finally {
     btn.disabled = false;
     const active = refList.filter(r => !r.deleted).length;
@@ -924,13 +1090,20 @@ async function downloadFile() {
 // ═══════════════════════════════════════════════════════
 document.getElementById('btn-reset').addEventListener('click', () => {
   originalBuf = wb = ws = colRef = colObs = colTipo = headerRow = dataStart = null;
-  refList = []; curFilter = 'all';
-  selectedFile = null; outputName = '';
+  refList = [];
+  curFilter = 'all';
+  searchQuery = '';
+  selectedFile = null;
+  outputName = '';
+  obsCache = null;
+  obsCacheKey = '';
   fileInput.value = '';
   document.getElementById('file-card').style.display  = 'none';
   document.getElementById('sec-editor').style.display = 'none';
+  document.getElementById('search-box').value = '';
   const su = document.getElementById('sec-upload');
-  su.style.opacity='1'; su.style.pointerEvents='';
+  su.style.opacity='1';
+  su.style.pointerEvents='';
   btnProc.disabled = true;
   hideErr();
 });
