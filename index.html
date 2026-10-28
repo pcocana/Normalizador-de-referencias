@@ -135,6 +135,16 @@ main { max-width: 860px; margin: 0 auto; padding: 1.75rem 1.5rem 4rem; }
 .btn-reset  { padding: 12px 16px; border-radius: 8px; font-size: .83rem; font-family: sans-serif; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); }
 .btn-reset:hover { background: var(--surface2); color: var(--text); }
 footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--text3); font-family: sans-serif; border-top: 1px solid var(--border); margin-top: 2rem; }
+.tabs { display: flex; gap: 6px; margin-bottom: 1.4rem; border-bottom: 1px solid var(--border); }
+.tab-btn { font-family: sans-serif; font-size: .85rem; font-weight: 600; padding: 9px 18px; border: none; border-bottom: 3px solid transparent; background: none; color: var(--text3); cursor: pointer; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.on { color: var(--text); border-bottom-color: var(--accent); }
+.asig-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; margin-bottom: 10px; font-family: sans-serif; }
+.asig-box h3 { font-size: .9rem; margin-bottom: 4px; font-family: Georgia, serif; }
+.asig-box p  { font-size: .78rem; color: var(--text2); margin-bottom: 9px; line-height: 1.5; }
+.asig-box .fname-sel { font-size: .8rem; color: var(--text2); margin-left: 10px; }
+.asig-box input[type=file] { display: none; }
+.asig-result { margin-top: 12px; background: var(--green-bg); border: 1px solid var(--green); color: var(--green); border-radius: 8px; padding: 10px 13px; font-family: sans-serif; font-size: .82rem; line-height: 1.6; }
 @media (max-width: 600px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   header { padding: 1rem; }
@@ -155,6 +165,11 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
   </div>
 </header>
 <main>
+  <div class="tabs" role="tablist">
+    <button class="tab-btn on" id="tab-norm" role="tab" data-tab="norm">Normalizar referencias</button>
+    <button class="tab-btn" id="tab-asig" role="tab" data-tab="asig">Ordenar por asignatura</button>
+  </div>
+  <div id="tool-norm">
   <div id="sec-upload">
     <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Arrastra o selecciona un archivo Excel">
       <div class="drop-icon">
@@ -229,8 +244,36 @@ footer { text-align: center; padding: 1.2rem; font-size: .71rem; color: var(--te
       <button class="btn-reset" id="btn-reset">↩ Nuevo archivo</button>
     </div>
   </div>
+  </div><!-- /tool-norm -->
+
+  <div id="tool-asig" style="display:none">
+    <div class="ed-header">
+      <h2>Ordenar bibliografía por asignatura</h2>
+      <p>Toma un listado de referencias con sus asignaturas (una referencia puede estar en varias, una por línea) y genera una fila por par asignatura–referencia, ordenada alfabéticamente, usando tu plantilla. Las asignaturas marcadas “(ICI, ICD)” se separan en dos filas: “(ICI)” y “(ICD)”.</p>
+    </div>
+
+    <div class="asig-box">
+      <h3>1. Plantilla (.xlsx)</h3>
+      <p>Archivo modelo: los datos se escriben desde la fila 4, asignatura en columna B y referencia en columna D. Se conserva el estilo de la fila 4.</p>
+      <label class="browse" for="asig-tpl">Seleccionar plantilla</label>
+      <span class="fname-sel" id="asig-tpl-name">Ningún archivo</span>
+      <input type="file" id="asig-tpl" accept=".xlsx">
+    </div>
+
+    <div class="asig-box">
+      <h3>2. Archivo fuente (.xlsx)</h3>
+      <p>Referencia en columna A y asignaturas en columna B (una por línea), con datos desde la fila 5.</p>
+      <label class="browse" for="asig-src">Seleccionar fuente</label>
+      <span class="fname-sel" id="asig-src-name">Ningún archivo</span>
+      <input type="file" id="asig-src" accept=".xlsx">
+    </div>
+
+    <div class="err" id="asig-err" style="display:none" role="alert"><span id="asig-err-msg"></span></div>
+    <button class="btn-main" id="asig-run" disabled>Generar y descargar bibliografía ordenada</button>
+    <div class="asig-result" id="asig-result" style="display:none"></div>
+  </div>
 </main>
-<footer>Normalizador APA 7 · v3.4 · Agosto 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
+<footer>Normalizador APA 7 · v3.5 · Agosto 2026 · Pablo Coronel · Procesamiento 100 % local — ningún archivo abandona tu equipo</footer>
 
 <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
@@ -1084,6 +1127,148 @@ async function downloadFile() {
       `Descargar archivo normalizado (${active} referencias)`;
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// PESTAÑAS
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab-btn').forEach(x => x.classList.toggle('on', x === b));
+  document.getElementById('tool-norm').style.display = b.dataset.tab === 'norm' ? '' : 'none';
+  document.getElementById('tool-asig').style.display = b.dataset.tab === 'asig' ? '' : 'none';
+}));
+
+// ═══════════════════════════════════════════════════════
+// ORDENAR POR ASIGNATURA (port de normalizador.py)
+// ═══════════════════════════════════════════════════════
+const ASIG_TPL_START = 4;   // primera fila de datos en la plantilla
+const ASIG_SRC_START = 5;   // primera fila de datos en la fuente
+const ASIG_OUT_NAME  = 'Bibliografia_ordenada_por_asignatura.xlsx';
+let asigTpl = null, asigSrc = null;
+
+function asigErr(msg) {
+  const box = document.getElementById('asig-err');
+  document.getElementById('asig-err-msg').textContent = msg || '';
+  box.style.display = msg ? 'flex' : 'none';
+}
+function asigCheckReady() {
+  document.getElementById('asig-run').disabled = !(asigTpl && asigSrc);
+}
+function asigPick(inputId, nameId, setter) {
+  document.getElementById(inputId).addEventListener('change', e => {
+    const f = e.target.files[0];
+    asigErr('');
+    if (!f) return;
+    if (!/\.xlsx$/i.test(f.name)) { asigErr('Solo se admiten archivos .xlsx'); return; }
+    if (f.size > MAX_FILE_SIZE) { asigErr('Archivo demasiado grande (máx. 20 MB)'); return; }
+    setter(f);
+    document.getElementById(nameId).textContent = f.name;
+    asigCheckReady();
+  });
+}
+asigPick('asig-tpl', 'asig-tpl-name', f => asigTpl = f);
+asigPick('asig-src', 'asig-src-name', f => asigSrc = f);
+
+function asigCmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+
+document.getElementById('asig-run').addEventListener('click', async () => {
+  const btn = document.getElementById('asig-run');
+  const res = document.getElementById('asig-result');
+  btn.disabled = true;
+  res.style.display = 'none';
+  asigErr('');
+  const oldLabel = btn.textContent;
+  btn.textContent = 'Procesando…';
+
+  try {
+    const wbT = new ExcelJS.Workbook();
+    await wbT.xlsx.load(await asigTpl.arrayBuffer());
+    const wsT = wbT.worksheets[0];
+    const wbS = new ExcelJS.Workbook();
+    await wbS.xlsx.load(await asigSrc.arrayBuffer());
+    const wsS = wbS.worksheets[0];
+    if (!wsT || !wsS) throw new Error('Alguno de los archivos no contiene hojas de cálculo.');
+
+    // ── Construir pares (asignatura, referencia) ──
+    const pairs = [];
+    for (let r = ASIG_SRC_START; r <= wsS.rowCount; r++) {
+      const ref = extractCellText(wsS.getCell(r, 1).value).trim();
+      const courses = extractCellText(wsS.getCell(r, 2).value);
+      if (!ref || !courses.trim()) continue;
+      courses.split(/\r?\n/).map(x => x.trim()).filter(Boolean).forEach(course => {
+        const m = course.match(/^(.*?)\s*\(ICI,\s*ICD\)\s*$/);
+        if (m) {
+          const base = m[1].trim();
+          pairs.push([`${base} (ICI)`, ref], [`${base} (ICD)`, ref]);
+        } else {
+          pairs.push([course, ref]);
+        }
+      });
+    }
+    if (!pairs.length) throw new Error(
+      `No se encontraron pares asignatura–referencia desde la fila ${ASIG_SRC_START} del archivo fuente.\n` +
+      'Verifica que la referencia esté en la columna A y las asignaturas en la B.'
+    );
+    pairs.sort((x, y) => asigCmp(x[0].toLowerCase(), y[0].toLowerCase()) ||
+                         asigCmp(x[1].toLowerCase(), y[1].toLowerCase()));
+
+    // ── Guardar estilo de la fila modelo (cols 1-10) ──
+    const baseStyles = [];
+    for (let c = 1; c <= 10; c++) {
+      const cell = wsT.getCell(ASIG_TPL_START, c);
+      baseStyles[c] = cell.style ? JSON.parse(JSON.stringify(cell.style)) : null;
+    }
+
+    // ── Descombinar celdas de datos de la plantilla ──
+    (wsT.model.merges || []).slice().forEach(rng => {
+      const top = parseInt(rng.split(':')[0].replace(/\D/g, ''), 10);
+      if (top >= ASIG_TPL_START) wsT.unMergeCells(rng);
+    });
+
+    // ── Limpiar datos de ejemplo ──
+    const lastOld = wsT.rowCount;
+    const lastCol = Math.max(wsT.columnCount, 10);
+    for (let r = ASIG_TPL_START; r <= lastOld; r++) {
+      for (let c = 1; c <= lastCol; c++) wsT.getCell(r, c).value = null;
+    }
+
+    // ── Escribir pares: B = asignatura, D = referencia ──
+    pairs.forEach(([course, ref], i) => {
+      const r = ASIG_TPL_START + i;
+      for (let c = 1; c <= 10; c++) {
+        if (baseStyles[c]) wsT.getCell(r, c).style = JSON.parse(JSON.stringify(baseStyles[c]));
+      }
+      [[2, course], [4, ref]].forEach(([c, v]) => {
+        const cell = wsT.getCell(r, c);
+        cell.value = v;
+        cell.alignment = Object.assign({}, cell.alignment || {}, { vertical: 'top', wrapText: true });
+      });
+      wsT.getRow(r).height = 36;
+    });
+
+    wsT.getColumn(2).width = 38;
+    wsT.getColumn(4).width = 95;
+    wsT.views = [{ state: 'frozen', xSplit: 1, ySplit: ASIG_TPL_START - 1, topLeftCell: 'B' + ASIG_TPL_START }];
+
+    // ── Descargar ──
+    const out  = await wbT.xlsx.writeBuffer();
+    const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = ASIG_OUT_NAME; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+    const nCourses = new Set(pairs.map(p => p[0])).size;
+    res.innerHTML = `✓ Archivo generado: <strong>${pairs.length}</strong> filas · <strong>${nCourses}</strong> asignaturas`;
+    res.style.display = 'block';
+    showToast('Archivo descargado correctamente', 'success');
+  } catch (e) {
+    asigErr(e.message || String(e));
+    console.error('Error ordenar por asignatura:', e);
+  } finally {
+    btn.textContent = oldLabel;
+    asigCheckReady();
+  }
+});
 
 // ═══════════════════════════════════════════════════════
 // RESET
